@@ -1,0 +1,130 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Node.js / Backend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Backend Build
+backend/dist/
+backend/build/
+backend/.tsbuildinfo
+
+# Backend Testing
+backend/coverage/
+backend/.vitest/
+
+# Tools for building
+tools
+
+# Swift / Frontend
+.build/
+.swiftpm/
+.xcodeproj/
+.xcworkspace/
+*.xcarchive
+DerivedData/
+build/
+.DS_Store
+xcuserdata/
+*.playground
+
+# Frontend Build
+frontend/build/
+frontend/.build/
+
+# Xcode
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcworkspace/xcshareddata/
+*.xcworkspace/xcuserdata/
+**/*.playground
+.xcode.env
+
+# macOS
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+._*
+.VolumeIcon.icns
+*.dmg
+Thumbs.db
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.vim/
+.emacs.d/
+*.sublime-project
+*.sublime-workspace
+
+# OS Generated Files
+Thumbs.db
+.directory
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+data/anchor.db
+
+# Build Outputs
+build/
+dist/
+*.app/
+*.dmg
+build/dist/
+build/checksums.txt
+build/RELEASE_NOTES.md
+
+# Runtime
+tools/node-runtime/node
+tools/node-runtime/lib/
+tools/node-runtime/bin/node_modules/
+
+# Temporary Files
+*.tmp
+*.temp
+*.lock
+package-lock.json.bak
+
+# Logs
+logs/
+*.log
+
+# Distribution
+*.tar.gz
+*.zip
+*.rar
+
+# Generated Files
+*.d.ts
+*.js.map
+*.css.map
+
+# CI/CD
+.github/workflows/build-cache/
+.github/workflows/downloads/
+
+# Misc
+.cache/
+.turbo/
+dist/
+out/

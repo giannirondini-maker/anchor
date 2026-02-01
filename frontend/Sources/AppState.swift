@@ -1,0 +1,245 @@
+/**
+ * Application State
+ *
+ * Global state management for the Anchor app
+ */
+
+import SwiftUI
+import Combine
+
+@MainActor
+class AppState: ObservableObject {
+    // MARK: - Published Properties
+    
+    @Published var conversations: [Conversation] = []
+    @Published var selectedConversationId: String?
+    @Published var availableModels: [ModelInfo] = []
+    @Published var isLoading: Bool = false
+    @Published var error: AppError?
+    @Published var isDataLoaded: Bool = false
+    
+    // MARK: - Services
+    
+    private let networkService = NetworkService.shared
+    private let webSocketService = WebSocketService.shared
+    private var cancellables = Set<AnyCancellable>()
+    
+    // MARK: - Computed Properties
+    
+    var selectedConversation: Conversation? {
+        guard let id = selectedConversationId else { return nil }
+        return conversations.first { $0.id == id }
+    }
+    
+    // MARK: - Initialization
+    
+    init() {
+        setupBindings()
+        // Note: Data loading is deferred until backend is ready
+        // Call onBackendReady() when the backend becomes available
+    }
+    
+    // MARK: - Setup
+    
+    private func setupBindings() {
+        // Listen for new conversation notifications
+        NotificationCenter.default.publisher(for: .newConversation)
+            .sink { [weak self] _ in
+                Task {
+                    await self?.createConversation()
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    /// Called when the backend becomes ready
+    /// This triggers initial data loading
+    func onBackendReady() {
+        guard !isDataLoaded else { return }
+        print("📱 Backend ready, loading initial data...")
+        Task {
+            await loadInitialData()
+            isDataLoaded = true
+        }
+    }
+    
+    private func loadInitialData() async {
+        await loadModels()
+        await loadConversations()
+    }
+    
+    // MARK: - Model Operations
+    
+    func loadModels() async {
+        do {
+            availableModels = try await networkService.fetchModels()
+        } catch {
+            self.error = AppError(message: "Failed to load models: \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - Conversation Operations
+    
+    func loadConversations() async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            conversations = try await networkService.fetchConversations()
+        } catch {
+            self.error = AppError(message: "Failed to load conversations: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Chooses the model to use when creating a conversation.
+    /// Selection priority:
+    /// 1) `requested` if provided
+    /// 2) `Configuration.defaultModel` if present in `available`
+    /// 3) first model in `available` that has multiplier == 0
+    /// 4) first model in `available`
+    /// 5) `Configuration.defaultModel` as last resort
+    nonisolated static func chooseModel(requested: String?, available: [ModelInfo]) -> String {
+        if let requested = requested {
+            return requested
+        }
+
+        let defaultModel = Configuration.defaultModel
+
+        if available.contains(where: { $0.id == defaultModel }) {
+            return defaultModel
+        }
+
+        if let free = available.first(where: { $0.multiplier == 0 || $0.multiplier == 0.0 }) {
+            print("AUDIT: Default model '\(defaultModel)' not found in available models; selected free model '\(free.id)'")
+            return free.id
+        }
+
+        if let first = available.first {
+            return first.id
+        }
+
+        return defaultModel
+    }
+
+    func createConversation(title: String = "New Conversation", model: String? = nil) async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            let selectedModel = AppState.chooseModel(requested: model, available: availableModels)
+            let conversation = try await networkService.createConversation(
+                title: title,
+                model: selectedModel
+            )
+            conversations.insert(conversation, at: 0)
+            selectedConversationId = conversation.id
+        } catch {
+            self.error = AppError(message: "Failed to create conversation: \(error.localizedDescription)")
+        }
+    }
+    
+    func selectConversation(_ conversation: Conversation?) {
+        selectedConversationId = conversation?.id
+    }
+    
+    func updateConversation(id: String, title: String? = nil, model: String? = nil) async {
+        do {
+            let updated = try await networkService.updateConversation(id: id, title: title, model: model)
+            if let index = conversations.firstIndex(where: { $0.id == id }) {
+                conversations[index] = updated
+            }
+        } catch {
+            self.error = AppError(message: "Failed to update conversation: \(error.localizedDescription)")
+        }
+    }
+    
+    func deleteConversation(_ conversation: Conversation) async {
+        do {
+            try await networkService.deleteConversation(id: conversation.id)
+            conversations.removeAll { $0.id == conversation.id }
+            if selectedConversationId == conversation.id {
+                selectedConversationId = conversations.first?.id
+            }
+        } catch {
+            self.error = AppError(message: "Failed to delete conversation: \(error.localizedDescription)")
+        }
+    }
+    
+    func deleteAllConversations() async {
+        do {
+            try await networkService.deleteAllConversations()
+            conversations.removeAll()
+            selectedConversationId = nil
+        } catch {
+            self.error = AppError(message: "Failed to delete conversations: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Move a conversation to the top of the list (called when new message activity occurs)
+    func moveConversationToTop(id: String) {
+        guard let index = conversations.firstIndex(where: { $0.id == id }), index > 0 else { return }
+        let conversation = conversations.remove(at: index)
+        conversations.insert(conversation, at: 0)
+    }
+    
+    // MARK: - Tag Operations
+    
+    /// Add a tag to a conversation (supports comma-separated tags)
+    func addTagsToConversation(conversationId: String, tagInput: String) async {
+        // Split by comma and trim whitespace
+        let tagNames = tagInput
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        
+        guard !tagNames.isEmpty else { return }
+        
+        do {
+            var updatedConversation: Conversation?
+            for tagName in tagNames {
+                updatedConversation = try await networkService.addTagToConversation(
+                    conversationId: conversationId,
+                    name: tagName
+                )
+            }
+            
+            // Update local state with the final conversation state
+            if let updated = updatedConversation,
+               let index = conversations.firstIndex(where: { $0.id == conversationId }) {
+                conversations[index] = updated
+            }
+        } catch {
+            self.error = AppError(message: "Failed to add tag: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Remove a tag from a conversation
+    func removeTagFromConversation(conversationId: String, tagId: Int) async {
+        do {
+            let updated = try await networkService.removeTagFromConversation(
+                conversationId: conversationId,
+                tagId: tagId
+            )
+            
+            // Update local state
+            if let index = conversations.firstIndex(where: { $0.id == conversationId }) {
+                conversations[index] = updated
+            }
+        } catch {
+            self.error = AppError(message: "Failed to remove tag: \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - Error Handling
+    
+    func dismissError() {
+        error = nil
+    }
+}
+
+// MARK: - App Error
+
+struct AppError: Identifiable {
+    let id = UUID()
+    let message: String
+}
