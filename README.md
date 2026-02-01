@@ -26,6 +26,14 @@ Anchor is a desktop application that lets you interact with Large Language Model
 - 📋 Copy messages to clipboard
 - ⌨️ Keyboard shortcuts
 
+----
+
+<p align="center">
+  <img src="./assets/Anchor-preview.png" alt="Anchor icon" width="65%" />
+</p>
+
+----
+
 ## Prerequisites
 
 - macOS 14.0+ (Sonoma)

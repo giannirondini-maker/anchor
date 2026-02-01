@@ -318,7 +318,7 @@ fi
 
 print_step "Creating upload instructions..."
 
-UPLOAD_INSTRUCTIONS="$BUILD_DIR/UPLOAD_INSTRUCTIONS.txt"
+UPLOAD_INSTRUCTIONS="$BUILD_DIR/UPLOAD_INSTRUCTIONS.md"
 
 cat > "$UPLOAD_INSTRUCTIONS" << EOF
 GitHub Release Upload Instructions
