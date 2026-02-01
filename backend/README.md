@@ -85,7 +85,7 @@ A `.nvmrc` file exists at the project root, so you can simply run `nvm use` from
 
 ## WebSocket
 
-Connect to `ws://localhost:3000/ws?conversationId=<id>` to receive streaming responses.
+Connect to `ws://localhost:3848/ws?conversationId=<id>` (development) to receive streaming responses.
 
 ### Events
 
@@ -100,7 +100,7 @@ Connect to `ws://localhost:3000/ws?conversationId=<id>` to receive streaming res
 
 ### Connection Lifecycle
 
-1. Client connects to `ws://localhost:3000/ws?conversationId=<id>`
+1. Client connects to `ws://localhost:3848/ws?conversationId=<id>` (dev) or `ws://localhost:3847/ws?conversationId=<id>` (prod)
 2. Server sends `session:idle` to confirm connection
 3. Client can now send messages via HTTP POST (responses streamed via WebSocket)
 4. Client sends periodic pings (every 30s) to detect stale connections

@@ -89,8 +89,8 @@ The frontend can be configured via environment variables. These allow you to con
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ANCHOR_API_URL` | `http://localhost:3000/api` | Backend API base URL (HTTP/REST endpoints) |
-| `ANCHOR_WS_URL` | `ws://localhost:3000/ws` | WebSocket URL for real-time streaming |
+| `ANCHOR_API_URL` | `http://localhost:3848/api` | Backend API base URL (HTTP/REST endpoints - dev mode) |
+| `ANCHOR_WS_URL` | `ws://localhost:3848/ws` | WebSocket URL for real-time streaming (dev mode) |
 | `ANCHOR_DEFAULT_MODEL` | `gpt-5-mini` | Default model to use when creating conversations |
 
 ### How to Set Environment Variables
@@ -102,8 +102,8 @@ The frontend can be configured via environment variables. These allow you to con
 ANCHOR_API_URL="http://api.example.com" swift run
 
 # Set multiple variables
-ANCHOR_API_URL="http://api.example.com" \
-ANCHOR_WS_URL="ws://api.example.com/ws" \
+ANCHOR_API_URL="http://localhost:3848/api" \
+ANCHOR_WS_URL="ws://localhost:3848/ws" \
 ANCHOR_DEFAULT_MODEL="claude-sonnet-4-20250514" \
 swift run
 ```
@@ -115,8 +115,8 @@ swift run
 swift build
 
 # Then run with environment variables
-ANCHOR_API_URL="http://api.example.com" \
-ANCHOR_WS_URL="ws://api.example.com/ws" \
+ANCHOR_API_URL="http://localhost:3848/api" \
+ANCHOR_WS_URL="ws://localhost:3848/ws" \
 .build/debug/Anchor
 ```
 
@@ -127,8 +127,8 @@ ANCHOR_WS_URL="ws://api.example.com/ws" \
 3. Go to the "Run" tab
 4. Expand "Arguments"
 5. In "Environment Variables" section, add:
-   - `ANCHOR_API_URL` = `http://api.example.com`
-   - `ANCHOR_WS_URL` = `ws://api.example.com/ws`
+   - `ANCHOR_API_URL` = `http://localhost:3848/api`
+   - `ANCHOR_WS_URL` = `ws://localhost:3848/ws`
    - `ANCHOR_DEFAULT_MODEL` = `claude-sonnet-4-20250514`
 
 6. Click "Close" and run normally (⌘R)
@@ -139,8 +139,8 @@ Add to your shell profile for persistent configuration across all terminal sessi
 
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
-export ANCHOR_API_URL="http://api.example.com"
-export ANCHOR_WS_URL="ws://api.example.com/ws"
+export ANCHOR_API_URL="http://localhost:3848/api"
+export ANCHOR_WS_URL="ws://localhost:3848/ws"
 export ANCHOR_DEFAULT_MODEL="claude-sonnet-4-20250514"
 ```
 
@@ -156,8 +156,8 @@ source ~/.bashrc # for bash
 **Local Development (Default)**
 ```bash
 # These are the defaults - no configuration needed
-ANCHOR_API_URL="http://localhost:3000/api"
-ANCHOR_WS_URL="ws://localhost:3000/ws"
+ANCHOR_API_URL="http://localhost:3848/api"
+ANCHOR_WS_URL="ws://localhost:3848/ws"
 ANCHOR_DEFAULT_MODEL="gpt-5-mini"
 ```
 
@@ -267,7 +267,7 @@ The `WebSocketService` manages real-time communication with the backend:
 ## Backend Connection
 
 The frontend connects to the backend at:
-- HTTP: `http://localhost:3000/api`
-- WebSocket: `ws://localhost:3000/ws`
+- HTTP: `http://localhost:3848/api` (development) or `http://localhost:3847/api` (production)
+- WebSocket: `ws://localhost:3848/ws` (development) or `ws://localhost:3847/ws` (production)
 
 Make sure the backend is running before launching the frontend.

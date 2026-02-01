@@ -237,7 +237,7 @@ SQLite-based persistence for conversations and tags:
 
 ### WebSocket Protocol
 
-Connection: `ws://localhost:3001/ws`
+Connection: `ws://localhost:3848/ws` (dev) or `ws://localhost:3847/ws` (prod)
 
 **Client → Server Messages**:
 ```typescript
@@ -286,8 +286,8 @@ Connection: `ws://localhost:3001/ws`
 ```swift
 struct Configuration {
     static let backendHost = "localhost"
-    static let backendPort = 3001
-    static let wsEndpoint = "ws://localhost:3001/ws"
+    static let backendPort = 3848  // Development: 3848, Production: 3847
+    static let wsEndpoint = "ws://localhost:3848/ws"  // or 3847 for prod
 }
 ```
 

@@ -101,8 +101,10 @@ npm run dev
 ```
 
 The backend will be available at:
-- HTTP: http://localhost:3000
-- WebSocket: ws://localhost:3000/ws
+- HTTP: http://localhost:3848 (development)
+- WebSocket: ws://localhost:3848/ws (development)
+- HTTP: http://localhost:3847 (prod)
+- WebSocket: ws://localhost:3847/ws (prod)
 
 ### 2. Build and Run the Frontend
 
