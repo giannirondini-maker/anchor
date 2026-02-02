@@ -16,7 +16,7 @@ final class ConfigurationTests: XCTestCase {
         
         XCTAssertEqual(url.scheme, "http")
         XCTAssertEqual(url.host, "localhost")
-        XCTAssertEqual(url.port, 3000)
+        XCTAssertEqual(url.port, Configuration.backendPort)
         XCTAssertEqual(url.path, "/api")
     }
     
@@ -25,8 +25,14 @@ final class ConfigurationTests: XCTestCase {
         
         XCTAssertEqual(url.scheme, "ws")
         XCTAssertEqual(url.host, "localhost")
-        XCTAssertEqual(url.port, 3000)
+        XCTAssertEqual(url.port, Configuration.backendPort)
         XCTAssertEqual(url.path, "/ws")
+    }
+    
+    func testBackendPortConfiguration() {
+        // Port should be either 3847 (production) or 3848 (development)
+        let port = Configuration.backendPort
+        XCTAssertTrue(port == 3847 || port == 3848, "Port should be 3847 (production) or 3848 (development), but was \(port)")
     }
     
     // MARK: - Default Values Tests

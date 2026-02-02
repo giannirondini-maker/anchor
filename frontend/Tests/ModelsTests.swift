@@ -173,6 +173,46 @@ final class ModelsTests: XCTestCase {
         XCTAssertTrue(model.enabled)
     }
     
+    func testModelInfoMultiplierFormatting() {
+        // Test whole numbers
+        let model1 = ModelInfo(id: "test-1", name: "Test Model 1", multiplier: 0.0)
+        XCTAssertEqual(model1.multiplierFormatted, "0x")
+        
+        let model2 = ModelInfo(id: "test-2", name: "Test Model 2", multiplier: 1.0)
+        XCTAssertEqual(model2.multiplierFormatted, "1x")
+        
+        let model3 = ModelInfo(id: "test-3", name: "Test Model 3", multiplier: 3.0)
+        XCTAssertEqual(model3.multiplierFormatted, "3x")
+        
+        // Test decimals
+        let model4 = ModelInfo(id: "test-4", name: "Test Model 4", multiplier: 0.33)
+        XCTAssertEqual(model4.multiplierFormatted, "0.33x")
+        
+        let model5 = ModelInfo(id: "test-5", name: "Test Model 5", multiplier: 1.5)
+        XCTAssertEqual(model5.multiplierFormatted, "1.5x")
+        
+        let model6 = ModelInfo(id: "test-6", name: "Test Model 6", multiplier: 2.25)
+        XCTAssertEqual(model6.multiplierFormatted, "2.25x")
+        
+        // Test rounding edge cases (should round to 2 decimals)
+        let model7 = ModelInfo(id: "test-7", name: "Test Model 7", multiplier: 1.555)
+        XCTAssertEqual(model7.multiplierFormatted, "1.56x")
+    }
+    
+    func testModelInfoDisplayName() {
+        let model1 = ModelInfo(id: "claude-sonnet-4", name: "Claude Sonnet 4", multiplier: 1.5)
+        XCTAssertEqual(model1.displayName, "Claude Sonnet 4 (1.5x)")
+        
+        let model2 = ModelInfo(id: "gpt-5", name: "GPT-5", multiplier: 1.0)
+        XCTAssertEqual(model2.displayName, "GPT-5 (1x)")
+        
+        let model3 = ModelInfo(id: "free-model", name: "Free Model", multiplier: 0.0)
+        XCTAssertEqual(model3.displayName, "Free Model (0x)")
+        
+        let model4 = ModelInfo(id: "lite-model", name: "Lite Model", multiplier: 0.33)
+        XCTAssertEqual(model4.displayName, "Lite Model (0.33x)")
+    }
+    
     // MARK: - Tag Tests
     
     func testTagDecoding() throws {

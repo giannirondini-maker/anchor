@@ -71,12 +71,12 @@ struct ChatHeaderView: View {
 
                     Picker("Model", selection: $selectedModel) {
                         ForEach(availableModels) { model in
-                            Text(model.name)
+                            Text(model.displayName)
                                 .tag(model.id)
                         }
                     }
                     .pickerStyle(.menu)
-                    .frame(width: 250, alignment: .leading)
+                    .frame(width: 280, alignment: .leading)
                     .onChange(of: selectedModel) { _, newValue in
                         onModelChange(newValue)
                     }
