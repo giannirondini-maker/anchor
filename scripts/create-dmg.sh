@@ -257,8 +257,6 @@ You also need an active **GitHub Copilot Pro** or **GitHub Copilot Business** li
 
 ## Support
 
-- **Repository**: https://github.com/yourusername/anchor
-- **Issues**: https://github.com/yourusername/anchor/issues
 - **Documentation**: See README.md in repository
 
 ## License

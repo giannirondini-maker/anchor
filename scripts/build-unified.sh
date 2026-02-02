@@ -28,7 +28,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 APP_NAME="Anchor"
-APP_VERSION="1.0.0"
+APP_VERSION="1.0.1"
 APP_IDENTIFIER="com.gianni.rondini.anchor"
 BUNDLE_DISPLAY_NAME="Anchor"
 MIN_MACOS_VERSION="14.0"
