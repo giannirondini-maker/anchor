@@ -38,9 +38,7 @@ struct SidebarView: View {
                 Spacer()
                 
                 Button {
-                    Task {
-                        await appState.createConversation()
-                    }
+                    appState.startNewConversation()
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.title2)
@@ -48,7 +46,7 @@ struct SidebarView: View {
                 .buttonStyle(.plain)
                 .help("New Conversation")
                 .accessibilityLabel("New Conversation")
-                .accessibilityHint("Creates a new chat conversation")
+                .accessibilityHint("Start a new chat conversation")
             }
             .padding(.horizontal)
             .padding(.vertical, 12)
@@ -84,10 +82,17 @@ struct SidebarView: View {
             
             // Conversation List
             if appState.isLoading && appState.conversations.isEmpty {
-                Spacer()
-                ProgressView()
-                    .progressViewStyle(.circular)
-                Spacer()
+                VStack(spacing: 16) {
+                    Spacer()
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .scaleEffect(1.2)
+                    Text("Loading conversations...")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if filteredConversations.isEmpty {
                 Spacer()
                 VStack(spacing: 8) {

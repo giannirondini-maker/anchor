@@ -17,6 +17,9 @@ class AppState: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var error: AppError?
     @Published var isDataLoaded: Bool = false
+    @Published var isDraftMode: Bool = false
+    @Published var pendingMessage: (conversationId: String, message: String)? = nil
+    @Published var isLoadingModels: Bool = true
     
     // MARK: - Services
     
@@ -35,6 +38,8 @@ class AppState: ObservableObject {
     
     init() {
         setupBindings()
+        // Start in draft mode by default (no conversation selected)
+        isDraftMode = true
         // Note: Data loading is deferred until backend is ready
         // Call onBackendReady() when the backend becomes available
     }
@@ -71,6 +76,9 @@ class AppState: ObservableObject {
     // MARK: - Model Operations
     
     func loadModels() async {
+        isLoadingModels = true
+        defer { isLoadingModels = false }
+        
         do {
             availableModels = try await networkService.fetchModels()
         } catch {
@@ -133,6 +141,8 @@ class AppState: ObservableObject {
             )
             conversations.insert(conversation, at: 0)
             selectedConversationId = conversation.id
+            // Exit draft mode when a real conversation is created
+            isDraftMode = false
         } catch {
             self.error = AppError(message: "Failed to create conversation: \(error.localizedDescription)")
         }
@@ -140,6 +150,36 @@ class AppState: ObservableObject {
     
     func selectConversation(_ conversation: Conversation?) {
         selectedConversationId = conversation?.id
+        // Exit draft mode when selecting a real conversation
+        if conversation != nil {
+            isDraftMode = false
+        }
+    }
+    
+    func startDraftConversation() {
+        isDraftMode = true
+        selectedConversationId = nil
+    }
+    
+    func startNewConversation() {
+        // Starting a new conversation enters draft mode
+        startDraftConversation()
+    }
+    
+    func cancelDraftConversation() {
+        isDraftMode = false
+    }
+    
+    func commitDraftConversation(firstMessage: String, model: String? = nil) async {
+        // Create the conversation first
+        await createConversation(title: "New Conversation", model: model)
+        isDraftMode = false
+        
+        // After conversation is created, store the pending message with its conversation ID
+        if let conversationId = selectedConversationId {
+            pendingMessage = (conversationId: conversationId, message: firstMessage)
+        }
+        // pendingMessage will be cleared by ChatView after sending
     }
     
     func updateConversation(id: String, title: String? = nil, model: String? = nil) async {

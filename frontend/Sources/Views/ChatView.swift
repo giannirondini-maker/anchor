@@ -73,6 +73,21 @@ struct ChatView: View {
         .onAppear {
             viewModel.setAppState(appState)
             viewModel.selectedModel = conversation.model ?? Configuration.defaultModel
+            
+            // Check for pending message (from draft conversation)
+            // Only send if it's for THIS specific conversation and hasn't been sent yet
+            if let pending = appState.pendingMessage,
+               pending.conversationId == conversation.id {
+                let messageToSend = pending.message
+                appState.pendingMessage = nil // Clear atomically before sending
+                
+                viewModel.inputText = messageToSend
+                Task {
+                    // Small delay to ensure WebSocket is connected
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                    await viewModel.sendMessage()
+                }
+            }
         }
         .onChange(of: conversation.id) { _, newId in
             viewModel.switchConversation(to: newId)
@@ -80,6 +95,10 @@ struct ChatView: View {
             if let newConversation = appState.conversations.first(where: { $0.id == newId }) {
                 viewModel.selectedModel = newConversation.model ?? Configuration.defaultModel
             }
+            
+            // Note: Pending message handling is only in onAppear to avoid race conditions
+            // If a pending message exists for this conversation, it will be handled when
+            // the ChatView for that conversation appears
         }
     }
 }
