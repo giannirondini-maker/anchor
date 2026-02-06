@@ -187,6 +187,9 @@ class ChatViewModel: ObservableObject {
         // Keep only the most recent 30 messages
         messages = Array(messages.suffix(30))
         hasOlderMessages = true
+        
+        // Update cache to reflect reduced messages
+        appState?.cacheMessages(messages, for: conversationId)
     }
 
     private func setupWebSocket() {
@@ -207,6 +210,9 @@ class ChatViewModel: ObservableObject {
                         status: .sending
                     )
                     self.messages.append(placeholderMessage)
+                    
+                    // Cache the placeholder message
+                    self.appState?.appendToCachedMessages(placeholderMessage, for: self.conversationId)
                 }
             }
         }
@@ -231,6 +237,9 @@ class ChatViewModel: ObservableObject {
 
                     if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
                         self.messages[index].content = content
+                        
+                        // Update cache with streaming content (batched)
+                        self.appState?.updateCachedMessage(self.messages[index], for: self.conversationId)
                     }
                 }
             }
@@ -248,6 +257,9 @@ class ChatViewModel: ObservableObject {
                 if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
                     self.messages[index].content = fullContent
                     self.messages[index].status = .sent
+                    
+                    // Update the cached message with final content
+                    self.appState?.updateCachedMessage(self.messages[index], for: self.conversationId)
                 }
 
                 self.isStreaming = false
@@ -271,6 +283,9 @@ class ChatViewModel: ObservableObject {
                 if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
                     self.messages[index].status = .error
                     self.messages[index].errorMessage = errorMsg
+                    
+                    // Update the cached message with error status
+                    self.appState?.updateCachedMessage(self.messages[index], for: self.conversationId)
                 }
 
                 self.isStreaming = false
@@ -289,6 +304,16 @@ class ChatViewModel: ObservableObject {
             await Task.yield()
             guard !Task.isCancelled else { return }
             
+            // First, check if we have cached messages for this conversation
+            if let cachedMessages = self.appState?.getCachedMessages(for: self.conversationId) {
+                print("📦 Using cached messages for conversation \(self.conversationId): \(cachedMessages.count) messages")
+                self.messages = cachedMessages
+                // We still need to check if there are older messages available
+                // but we don't need to reload the visible ones
+                return
+            }
+            
+            // No cache, load from network
             do {
                 let limit = Configuration.initialMessageLimit
                 let fetchedMessages = try await self.networkService.fetchMessages(
@@ -298,6 +323,10 @@ class ChatViewModel: ObservableObject {
                 guard !Task.isCancelled else { return }
                 self.messages = fetchedMessages
                 self.hasOlderMessages = fetchedMessages.count >= limit
+                
+                // Cache the loaded messages
+                self.appState?.cacheMessages(fetchedMessages, for: self.conversationId)
+                print("💾 Cached \(fetchedMessages.count) messages for conversation \(self.conversationId)")
             } catch {
                 guard !Task.isCancelled else { return }
                 self.error = error.localizedDescription
@@ -329,6 +358,9 @@ class ChatViewModel: ObservableObject {
             // Prepend older messages
             messages.insert(contentsOf: olderMessages, at: 0)
             hasOlderMessages = olderMessages.count >= limit
+            
+            // Update cache with prepended messages
+            appState?.prependToCachedMessages(olderMessages, for: conversationId)
         } catch {
             self.error = error.localizedDescription
         }
@@ -349,6 +381,9 @@ class ChatViewModel: ObservableObject {
             status: .sent
         )
         messages.append(userMessage)
+        
+        // Cache the new user message
+        appState?.appendToCachedMessages(userMessage, for: conversationId)
         
         do {
             let response = try await networkService.sendMessage(
@@ -374,24 +409,39 @@ class ChatViewModel: ObservableObject {
         conversationSwitchTask?.cancel()
         batchUpdateTask?.cancel()
 
-        // Clear state immediately to prevent layout thrashing on stale data
+        // Update conversation ID
         conversationId = newConversationId
-        messages = []
+        
+        // Clear streaming state
         isStreaming = false
-        hasOlderMessages = false
-        isLoadingOlder = false
         streamingMessageId = nil
         streamingContent = ""
         pendingStreamContent = nil
         pendingStreamMessageId = nil
 
-        // Debounce the actual load to coalesce rapid switches
-        conversationSwitchTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms debounce
-            guard !Task.isCancelled, let self = self else { return }
+        // Check cache first before clearing messages
+        if let cachedMessages = appState?.getCachedMessages(for: newConversationId) {
+            print("📦 Switching to cached conversation \(newConversationId): \(cachedMessages.count) messages")
+            messages = cachedMessages
+            hasOlderMessages = cachedMessages.count >= Configuration.initialMessageLimit
+            isLoadingOlder = false
+            
+            // Just reconnect WebSocket, no need to reload messages
+            webSocketService.connect(conversationId: newConversationId)
+        } else {
+            // No cache, clear and load
+            messages = []
+            hasOlderMessages = false
+            isLoadingOlder = false
 
-            self.webSocketService.connect(conversationId: newConversationId)
-            await self.loadMessages()
+            // Debounce the actual load to coalesce rapid switches
+            conversationSwitchTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms debounce
+                guard !Task.isCancelled, let self = self else { return }
+
+                self.webSocketService.connect(conversationId: newConversationId)
+                await self.loadMessages()
+            }
         }
     }
     
@@ -403,6 +453,9 @@ class ChatViewModel: ObservableObject {
         
         // Remove this message and all messages after it (including any assistant responses)
         messages.removeSubrange(messageIndex...)
+        
+        // Update cache to reflect the removed messages
+        appState?.removeCachedMessagesFromIndex(messageIndex, for: conversationId)
         
         // Send the edited content as a new message
         let content = editedContent.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -417,6 +470,9 @@ class ChatViewModel: ObservableObject {
             status: .sent
         )
         messages.append(userMessage)
+        
+        // Cache the new retry message
+        appState?.appendToCachedMessages(userMessage, for: conversationId)
         
         do {
             _ = try await networkService.sendMessage(

@@ -21,6 +21,10 @@ class AppState: ObservableObject {
     @Published var pendingMessage: (conversationId: String, message: String)? = nil
     @Published var isLoadingModels: Bool = true
     
+    // Message cache: stores messages per conversation to avoid reloading
+    // Key: conversationId, Value: array of messages
+    @Published var messageCache: [String: [Message]] = [:]
+    
     // MARK: - Services
 
     private let networkService = NetworkService.shared
@@ -198,6 +202,8 @@ class AppState: ObservableObject {
         do {
             try await networkService.deleteConversation(id: conversation.id)
             conversations.removeAll { $0.id == conversation.id }
+            // Clear cached messages for deleted conversation
+            clearMessageCache(for: conversation.id)
             if selectedConversationId == conversation.id {
                 selectedConversationId = conversations.first?.id
             }
@@ -211,6 +217,8 @@ class AppState: ObservableObject {
             try await networkService.deleteAllConversations()
             conversations.removeAll()
             selectedConversationId = nil
+            // Clear all cached messages
+            clearMessageCache()
         } catch {
             self.error = AppError(message: "Failed to delete conversations: \(error.localizedDescription)")
         }
@@ -268,6 +276,65 @@ class AppState: ObservableObject {
             }
         } catch {
             self.error = AppError(message: "Failed to remove tag: \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - Message Cache Operations
+    
+    /// Get cached messages for a conversation
+    func getCachedMessages(for conversationId: String) -> [Message]? {
+        return messageCache[conversationId]
+    }
+    
+    /// Cache messages for a conversation
+    func cacheMessages(_ messages: [Message], for conversationId: String) {
+        messageCache[conversationId] = messages
+    }
+    
+    /// Append a message to the cache for a conversation
+    func appendToCachedMessages(_ message: Message, for conversationId: String) {
+        if messageCache[conversationId] != nil {
+            messageCache[conversationId]?.append(message)
+        } else {
+            messageCache[conversationId] = [message]
+        }
+    }
+    
+    /// Update a specific message in the cache
+    func updateCachedMessage(_ message: Message, for conversationId: String) {
+        guard var messages = messageCache[conversationId],
+              let index = messages.firstIndex(where: { $0.id == message.id }) else {
+            return
+        }
+        messages[index] = message
+        messageCache[conversationId] = messages
+    }
+    
+    /// Prepend older messages to the cache (for pagination)
+    func prependToCachedMessages(_ messages: [Message], for conversationId: String) {
+        if var existingMessages = messageCache[conversationId] {
+            existingMessages.insert(contentsOf: messages, at: 0)
+            messageCache[conversationId] = existingMessages
+        } else {
+            messageCache[conversationId] = messages
+        }
+    }
+    
+    /// Remove messages starting from a specific index (for retry operations)
+    func removeCachedMessagesFromIndex(_ index: Int, for conversationId: String) {
+        guard var messages = messageCache[conversationId], index < messages.count else {
+            return
+        }
+        messages.removeSubrange(index...)
+        messageCache[conversationId] = messages
+    }
+    
+    /// Clear message cache for a specific conversation or all conversations
+    func clearMessageCache(for conversationId: String? = nil) {
+        if let conversationId = conversationId {
+            messageCache.removeValue(forKey: conversationId)
+        } else {
+            messageCache.removeAll()
         }
     }
     
