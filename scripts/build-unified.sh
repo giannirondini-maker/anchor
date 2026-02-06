@@ -13,7 +13,9 @@
 # - Node.js 20+ (for building)
 # - Swift toolchain
 #
-# Usage: ./scripts/build-unified.sh
+# Usage: ./scripts/build-unified.sh [version]
+#
+# Example: ./scripts/build-unified.sh 1.0.0
 ###############################################################################
 
 set -e  # Exit on error
@@ -28,7 +30,8 @@ NC='\033[0m' # No Color
 
 # Configuration
 APP_NAME="Anchor"
-APP_VERSION="1.0.1"
+DEFAULT_VERSION="1.0.0"
+APP_VERSION="${1:-$DEFAULT_VERSION}"
 APP_IDENTIFIER="com.gianni.rondini.anchor"
 BUNDLE_DISPLAY_NAME="Anchor"
 MIN_MACOS_VERSION="14.0"

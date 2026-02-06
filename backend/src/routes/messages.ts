@@ -27,7 +27,9 @@ const router = Router();
 
 /**
  * GET /api/conversations/:id/messages
- * Returns all messages for a conversation
+ * Supports optional pagination via query params:
+ *  - limit=<n> : return at most n messages (latest messages)
+ *  - before=<ISO8601 timestamp> : return messages older than this timestamp
  */
 router.get("/:id/messages", (req, res, next) => {
   try {
@@ -38,7 +40,10 @@ router.get("/:id/messages", (req, res, next) => {
       throw new AppError(ErrorCodes.CONVERSATION_NOT_FOUND, "Conversation not found", 404);
     }
 
-    const messages = getMessagesForConversation(id);
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const before = req.query.before ? String(req.query.before) : undefined;
+
+    const messages = getMessagesForConversation(id, limit, before);
     res.json({ messages });
   } catch (error) {
     next(error);

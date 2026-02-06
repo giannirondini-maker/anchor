@@ -45,6 +45,13 @@ final class ConfigurationTests: XCTestCase {
         XCTAssertTrue(model.contains("claude") || model.contains("gpt"))
     }
     
+    // MARK: - Messages Configuration Tests
+    
+    func testInitialMessageLimit() {
+        XCTAssertEqual(Configuration.initialMessageLimit, 50, "Initial message limit should be 50 for pagination")
+        XCTAssertGreaterThan(Configuration.initialMessageLimit, 0, "Initial message limit must be positive")
+    }
+    
     // MARK: - Timeout Configuration Tests
     
     func testRequestTimeout() {

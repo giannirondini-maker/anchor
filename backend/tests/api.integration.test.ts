@@ -393,6 +393,35 @@ describe("API Integration Tests", () => {
         expect(data.messages[1].role).toBe("assistant");
       });
 
+      it("should support pagination with limit and before", async () => {
+        const db = getDb();
+
+        // Insert 10 messages with deterministic timestamps
+        for (let i = 1; i <= 10; i++) {
+          const ts = new Date(Date.UTC(2026, 0, 1, 0, 0, i)); // 2026-01-01T00:00:0iZ
+          db.prepare(
+            "INSERT INTO messages (id, conversation_id, role, content, status, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+          ).run(`msg_${i}`, "conv_msg_test", i % 2 === 0 ? "assistant" : "user", `m${i}`, "sent", ts.toISOString());
+        }
+
+        // Get last 3 messages
+        const resp1 = await fetch(`${baseUrl}/conversations/conv_msg_test/messages?limit=3`);
+        const data1 = await resp1.json();
+        expect(resp1.status).toBe(200);
+        expect(data1.messages).toHaveLength(3);
+        // Should be msg_8, msg_9, msg_10 in ascending order
+        expect(data1.messages.map((m: any) => m.id)).toEqual(["msg_8", "msg_9", "msg_10"]);
+
+        // Page earlier messages before msg_8
+        const before = new Date(Date.UTC(2026, 0, 1, 0, 0, 8)).toISOString();
+        const resp2 = await fetch(`${baseUrl}/conversations/conv_msg_test/messages?limit=3&before=${encodeURIComponent(before)}`);
+        const data2 = await resp2.json();
+        expect(resp2.status).toBe(200);
+        expect(data2.messages).toHaveLength(3);
+        // Should be msg_5, msg_6, msg_7
+        expect(data2.messages.map((m: any) => m.id)).toEqual(["msg_5", "msg_6", "msg_7"]);
+      });
+
       it("should return 404 for non-existent conversation", async () => {
         const response = await fetch(`${baseUrl}/conversations/conv_nonexistent/messages`);
         

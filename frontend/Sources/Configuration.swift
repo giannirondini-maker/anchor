@@ -68,6 +68,11 @@ enum Configuration {
         ProcessInfo.processInfo.environment["ANCHOR_DEFAULT_MODEL"] ?? "claude-haiku-4.5"
     }
     
+    // MARK: - Messages
+    
+    /// Maximum number of messages to load initially per conversation
+    static let initialMessageLimit: Int = 50
+    
     // MARK: - Timeouts
     
     /// Request timeout interval in seconds

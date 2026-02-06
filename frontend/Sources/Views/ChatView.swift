@@ -46,10 +46,17 @@ struct ChatView: View {
             MessageListView(
                 messages: viewModel.messages,
                 isLoading: viewModel.isStreaming,
+                hasOlderMessages: viewModel.hasOlderMessages,
+                isLoadingOlder: viewModel.isLoadingOlder,
                 onRetry: { message, editedContent in
                     Task {
                         await viewModel.retryMessage(message, with: editedContent)
                         appState.moveConversationToTop(id: conversation.id)
+                    }
+                },
+                onLoadOlder: {
+                    Task {
+                        await viewModel.loadOlderMessages()
                     }
                 }
             )
@@ -113,7 +120,9 @@ class ChatViewModel: ObservableObject {
     @Published var isConnected: Bool = false
     @Published var selectedModel: String = Configuration.defaultModel
     @Published var error: String?
-    
+    @Published var hasOlderMessages: Bool = false
+    @Published var isLoadingOlder: Bool = false
+
     private var conversationId: String
     private let networkService = NetworkService.shared
     private let webSocketService = WebSocketService.shared
@@ -121,14 +130,28 @@ class ChatViewModel: ObservableObject {
     private var streamingContent: String = ""
     private var cancellables = Set<AnyCancellable>()
     private weak var appState: AppState?
-    
+    private var messageLoadTask: Task<Void, Never>?
+    private var conversationSwitchTask: Task<Void, Never>?
+
+    // Batching mechanism for streaming updates to reduce layout thrashing
+    private var batchUpdateTask: Task<Void, Never>?
+    private var pendingStreamContent: String?
+    private var pendingStreamMessageId: String?
+
     init(conversationId: String) {
         self.conversationId = conversationId
         setupWebSocket()
         observeConnectionStatus()
+        observeMemoryPressure()
         Task {
             await loadMessages()
         }
+    }
+
+    deinit {
+        messageLoadTask?.cancel()
+        conversationSwitchTask?.cancel()
+        batchUpdateTask?.cancel()
     }
     
     func setAppState(_ appState: AppState) {
@@ -143,7 +166,29 @@ class ChatViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
-    
+
+    private func observeMemoryPressure() {
+        NotificationCenter.default.publisher(for: .memoryPressureDetected)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    await self?.handleMemoryPressure()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Handle memory pressure by reducing the number of visible messages
+    private func handleMemoryPressure() async {
+        guard messages.count > 30 else { return }
+
+        print("⚠️ Memory pressure: Reducing visible messages from \(messages.count) to 30")
+
+        // Keep only the most recent 30 messages
+        messages = Array(messages.suffix(30))
+        hasOlderMessages = true
+    }
+
     private func setupWebSocket() {
         webSocketService.onMessageStart = { [weak self] messageId in
             Task { @MainActor in
@@ -170,9 +215,23 @@ class ChatViewModel: ObservableObject {
             Task { @MainActor in
                 guard let self = self else { return }
                 self.streamingContent += delta
-                
-                if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
-                    self.messages[index].content = self.streamingContent
+
+                // Batch updates to reduce layout thrashing - update UI every 50ms
+                self.pendingStreamContent = self.streamingContent
+                self.pendingStreamMessageId = messageId
+
+                // Cancel previous batch update if it exists
+                self.batchUpdateTask?.cancel()
+
+                self.batchUpdateTask = Task { @MainActor [weak self] in
+                    try? await Task.sleep(nanoseconds: 50_000_000) // 50ms batching
+                    guard !Task.isCancelled, let self = self,
+                          let messageId = self.pendingStreamMessageId,
+                          let content = self.pendingStreamContent else { return }
+
+                    if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
+                        self.messages[index].content = content
+                    }
                 }
             }
         }
@@ -180,16 +239,21 @@ class ChatViewModel: ObservableObject {
         webSocketService.onMessageComplete = { [weak self] messageId, fullContent in
             Task { @MainActor in
                 guard let self = self else { return }
-                
+
+                // Cancel any pending batch updates for this message
+                self.batchUpdateTask?.cancel()
+                self.pendingStreamContent = nil
+                self.pendingStreamMessageId = nil
+
                 if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
                     self.messages[index].content = fullContent
                     self.messages[index].status = .sent
                 }
-                
+
                 self.isStreaming = false
                 self.streamingMessageId = nil
                 self.streamingContent = ""
-                
+
                 // Move conversation to top when message is received
                 self.appState?.moveConversationToTop(id: self.conversationId)
             }
@@ -198,12 +262,17 @@ class ChatViewModel: ObservableObject {
         webSocketService.onMessageError = { [weak self] messageId, errorMsg in
             Task { @MainActor in
                 guard let self = self else { return }
-                
+
+                // Cancel any pending batch updates for this message
+                self.batchUpdateTask?.cancel()
+                self.pendingStreamContent = nil
+                self.pendingStreamMessageId = nil
+
                 if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
                     self.messages[index].status = .error
                     self.messages[index].errorMessage = errorMsg
                 }
-                
+
                 self.isStreaming = false
                 self.error = errorMsg
             }
@@ -213,11 +282,53 @@ class ChatViewModel: ObservableObject {
     }
     
     func loadMessages() async {
-        // Add a small yield to ensure UI doesn't freeze
-        await Task.yield()
+        messageLoadTask?.cancel()
+        
+        let task = Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            
+            do {
+                let limit = Configuration.initialMessageLimit
+                let fetchedMessages = try await self.networkService.fetchMessages(
+                    conversationId: self.conversationId,
+                    limit: limit
+                )
+                guard !Task.isCancelled else { return }
+                self.messages = fetchedMessages
+                self.hasOlderMessages = fetchedMessages.count >= limit
+            } catch {
+                guard !Task.isCancelled else { return }
+                self.error = error.localizedDescription
+            }
+        }
+        messageLoadTask = task
+        await task.value
+    }
+    
+    /// Load older messages (pagination) for the current conversation
+    func loadOlderMessages() async {
+        guard hasOlderMessages, !isLoadingOlder else { return }
+        isLoadingOlder = true
+        defer { isLoadingOlder = false }
+        
+        guard let oldestMessage = messages.first else { return }
+        
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let beforeTimestamp = formatter.string(from: oldestMessage.createdAt)
         
         do {
-            messages = try await networkService.fetchMessages(conversationId: conversationId)
+            let limit = Configuration.initialMessageLimit
+            let olderMessages = try await networkService.fetchMessages(
+                conversationId: conversationId,
+                limit: limit,
+                before: beforeTimestamp
+            )
+            // Prepend older messages
+            messages.insert(contentsOf: olderMessages, at: 0)
+            hasOlderMessages = olderMessages.count >= limit
         } catch {
             self.error = error.localizedDescription
         }
@@ -258,16 +369,29 @@ class ChatViewModel: ObservableObject {
     }
     
     func switchConversation(to newConversationId: String) {
+        // Cancel any in-flight operations immediately
+        messageLoadTask?.cancel()
+        conversationSwitchTask?.cancel()
+        batchUpdateTask?.cancel()
+
+        // Clear state immediately to prevent layout thrashing on stale data
         conversationId = newConversationId
         messages = []
         isStreaming = false
+        hasOlderMessages = false
+        isLoadingOlder = false
         streamingMessageId = nil
         streamingContent = ""
-        
-        webSocketService.connect(conversationId: newConversationId)
-        
-        Task {
-            await loadMessages()
+        pendingStreamContent = nil
+        pendingStreamMessageId = nil
+
+        // Debounce the actual load to coalesce rapid switches
+        conversationSwitchTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms debounce
+            guard !Task.isCancelled, let self = self else { return }
+
+            self.webSocketService.connect(conversationId: newConversationId)
+            await self.loadMessages()
         }
     }
     

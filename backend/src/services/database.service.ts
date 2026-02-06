@@ -236,14 +236,42 @@ function rowToMessage(row: MessageRow): Message {
   };
 }
 
-export function getMessagesForConversation(conversationId: string): Message[] {
-  const stmt = db.prepare(`
-    SELECT * FROM messages 
-    WHERE conversation_id = ?
-    ORDER BY created_at ASC
-  `);
-  const rows = stmt.all(conversationId) as MessageRow[];
-  return rows.map(rowToMessage);
+export function getMessagesForConversation(conversationId: string, limit?: number, before?: string): Message[] {
+  // If no pagination is requested, return all messages in ascending order
+  if (!limit) {
+    const stmt = db.prepare(`
+      SELECT * FROM messages 
+      WHERE conversation_id = ?
+      ORDER BY created_at ASC, rowid ASC
+    `);
+    const rows = stmt.all(conversationId) as MessageRow[];
+    return rows.map(rowToMessage);
+  }
+
+  // When limit is provided we query in reverse (latest first) and then reverse back
+  // Optionally support a `before` cursor (ISO 8601 timestamp) to page older messages
+  let rows: MessageRow[] = [];
+
+  if (before) {
+    const stmt = db.prepare(`
+      SELECT * FROM messages
+      WHERE conversation_id = ? AND created_at < ?
+      ORDER BY created_at DESC, rowid DESC
+      LIMIT ?
+    `);
+    rows = stmt.all(conversationId, before, limit) as MessageRow[];
+  } else {
+    const stmt = db.prepare(`
+      SELECT * FROM messages
+      WHERE conversation_id = ?
+      ORDER BY created_at DESC, rowid DESC
+      LIMIT ?
+    `);
+    rows = stmt.all(conversationId, limit) as MessageRow[];
+  }
+
+  // Return in ascending order (oldest -> newest)
+  return rows.reverse().map(rowToMessage);
 }
 
 export function createMessage(

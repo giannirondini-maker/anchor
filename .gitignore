@@ -49,6 +49,9 @@ frontend/.build/
 **/*.playground
 .xcode.env
 
+# ZSH
+.zsh-local.zsh
+
 # macOS
 .AppleDouble
 .LSOverride

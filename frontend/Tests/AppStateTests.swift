@@ -2,6 +2,29 @@ import XCTest
 @testable import Anchor
 
 final class AppStateTests: XCTestCase {
+    
+    // MARK: - Initial State Tests
+    
+    @MainActor
+    func testInitialLoadingState() {
+        let appState = AppState()
+        
+        // Should start with loading indicators enabled
+        XCTAssertTrue(appState.isLoading, "Conversations should show loading state on startup")
+        XCTAssertTrue(appState.isLoadingModels, "Models should show loading state on startup")
+        XCTAssertFalse(appState.isDataLoaded, "Data should not be marked as loaded initially")
+    }
+    
+    @MainActor
+    func testInitialDraftMode() {
+        let appState = AppState()
+        
+        // Should start in draft mode with no conversation selected
+        XCTAssertTrue(appState.isDraftMode, "Should start in draft mode")
+        XCTAssertNil(appState.selectedConversationId, "No conversation should be selected initially")
+    }
+    
+    // MARK: - Model Selection Tests
 
     func testChooseModel_usesRequestedIfProvided() {
         let requested = "custom-model"

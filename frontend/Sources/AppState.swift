@@ -14,7 +14,7 @@ class AppState: ObservableObject {
     @Published var conversations: [Conversation] = []
     @Published var selectedConversationId: String?
     @Published var availableModels: [ModelInfo] = []
-    @Published var isLoading: Bool = false
+    @Published var isLoading: Bool = true
     @Published var error: AppError?
     @Published var isDataLoaded: Bool = false
     @Published var isDraftMode: Bool = false
@@ -22,9 +22,10 @@ class AppState: ObservableObject {
     @Published var isLoadingModels: Bool = true
     
     // MARK: - Services
-    
+
     private let networkService = NetworkService.shared
     private let webSocketService = WebSocketService.shared
+    private let memoryMonitor = MemoryMonitor.shared
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Computed Properties

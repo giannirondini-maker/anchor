@@ -10,7 +10,10 @@ import MarkdownUI
 struct MessageListView: View {
     let messages: [Message]
     let isLoading: Bool
+    var hasOlderMessages: Bool = false
+    var isLoadingOlder: Bool = false
     var onRetry: ((Message, String) -> Void)?  // Now passes the edited content
+    var onLoadOlder: (() -> Void)?
     
     @State private var scrollToBottom = false
     
@@ -28,24 +31,20 @@ struct MessageListView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 16) {
-                    ForEach(messages) { message in
-                        MessageBubbleView(message: message, onRetry: onRetry)
-                            .id(message.id)
-                            .accessibilityElement(children: .contain)
-                            .accessibilityLabel("\(message.role == .user ? "Your message" : "Assistant response")")
+                // Use regular VStack for small message counts to avoid prefetching overhead
+                // Use LazyVStack only for large message counts
+                Group {
+                    if messages.count <= 20 {
+                        // No prefetching overhead for small lists
+                        VStack(spacing: 16) {
+                            messageListContent
+                        }
+                    } else {
+                        // Only use lazy loading for large lists
+                        LazyVStack(spacing: 16, pinnedViews: []) {
+                            messageListContent
+                        }
                     }
-                    
-                    if showStreamingIndicator {
-                        StreamingIndicatorView()
-                            .id("loading")
-                            .accessibilityLabel("Assistant is thinking")
-                    }
-                    
-                    // Invisible anchor for scrolling
-                    Color.clear
-                        .frame(height: 1)
-                        .id("bottom")
                 }
                 .padding()
             }
@@ -63,23 +62,78 @@ struct MessageListView: View {
             }
         }
     }
+
+    @ViewBuilder
+    private var messageListContent: some View {
+        // "Load Older Messages" button
+        if hasOlderMessages {
+            Button {
+                onLoadOlder?()
+            } label: {
+                HStack(spacing: 6) {
+                    if isLoadingOlder {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.up.circle")
+                    }
+                    Text(isLoadingOlder ? "Loading..." : "Load Older Messages")
+                }
+                .font(.subheadline)
+                .foregroundColor(.accentColor)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+            }
+            .buttonStyle(.plain)
+            .disabled(isLoadingOlder)
+            .id("load-older")
+        }
+
+        ForEach(messages) { message in
+            MessageBubbleView(message: message, onRetry: onRetry)
+                .equatable() // Use Equatable conformance to skip re-renders
+                .id(message.id)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("\(message.role == .user ? "Your message" : "Assistant response")")
+        }
+
+        if showStreamingIndicator {
+            StreamingIndicatorView()
+                .id("loading")
+                .accessibilityLabel("Assistant is thinking")
+        }
+
+        // Invisible anchor for scrolling
+        Color.clear
+            .frame(height: 1)
+            .id("bottom")
+    }
 }
 
 // MARK: - Message Bubble View
 
-struct MessageBubbleView: View {
+struct MessageBubbleView: View, Equatable {
     let message: Message
     var onRetry: ((Message, String) -> Void)?
-    
+
     @State private var isHovering = false
     @State private var isEditing = false
     @State private var editedContent: String = ""
     @State private var showCopiedFeedback = false
-    
+    @State private var cachedHeight: CGFloat?
+
+    // Equatable conformance to prevent unnecessary re-renders
+    static func == (lhs: MessageBubbleView, rhs: MessageBubbleView) -> Bool {
+        lhs.message.id == rhs.message.id &&
+        lhs.message.content == rhs.message.content &&
+        lhs.message.status == rhs.message.status &&
+        lhs.message.errorMessage == rhs.message.errorMessage
+    }
+
     private var isUser: Bool {
         message.role == .user
     }
-    
+
     private var bubbleColor: Color {
         if message.status == .error {
             return Color.red.opacity(0.1)
@@ -93,7 +147,7 @@ struct MessageBubbleView: View {
     var body: some View {
         HStack(alignment: .top) {
             if isUser { Spacer(minLength: 60) }
-            
+
             VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
                 // Role indicator
                 HStack(spacing: 4) {
@@ -102,25 +156,25 @@ struct MessageBubbleView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    
+
                     Text(isUser ? "You" : "Assistant")
                         .font(.caption)
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
-                    
+
                     if isEditing {
                         Text("• Editing")
                             .font(.caption)
                             .foregroundColor(.accentColor)
                     }
-                    
+
                     if isUser {
                         Image(systemName: "person.circle.fill")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
-                
+
                 // Message content
                 VStack(alignment: .leading, spacing: 8) {
                     if message.status == .sending && message.content.isEmpty {
@@ -146,15 +200,11 @@ struct MessageBubbleView: View {
                             .font(.system(size: 15))
                             .textSelection(.enabled)
                     } else {
-                        // Assistant messages: render as markdown with matched font size
-                        Markdown(message.content)
-                            .markdownTheme(.gitHub)
-                            .markdownTextStyle {
-                                FontSize(15)
-                            }
-                            .textSelection(.enabled)
+                        // Assistant messages: render as cached markdown to prevent layout thrashing
+                        CachedMarkdownView(content: message.content)
+                            .equatable()
                     }
-                    
+
                     if message.status == .error {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
@@ -175,7 +225,22 @@ struct MessageBubbleView: View {
                 // Add extra side padding so messages don't touch the window edge
                 .padding(.leading, isUser ? 0 : 20)
                 .padding(.trailing, isUser ? 20 : 0)
-                
+                .background(
+                    // Measure height only once, then cache it
+                    GeometryReader { geometry in
+                        Color.clear.preference(
+                            key: MessageHeightPreferenceKey.self,
+                            value: geometry.size.height
+                        )
+                    }
+                )
+                .onPreferenceChange(MessageHeightPreferenceKey.self) { height in
+                    // Only cache height for completed messages, not during editing/streaming
+                    if cachedHeight == nil && !isEditing && message.status != .sending {
+                        cachedHeight = height
+                    }
+                }
+
                 // Timestamp and actions
                 HStack(spacing: 12) {
                     if !isEditing {
@@ -332,6 +397,38 @@ struct StreamingIndicatorView: View {
                 animationPhase = 3.0
             }
         }
+    }
+}
+
+// MARK: - Cached Markdown View
+
+/// An equatable wrapper around MarkdownUI's Markdown view.
+/// SwiftUI uses the Equatable conformance to skip re-rendering when the content
+/// hasn't changed, which prevents the layout thrashing that causes UI hangs
+/// during rapid conversation switching.
+struct CachedMarkdownView: View, Equatable {
+    let content: String
+    
+    static func == (lhs: CachedMarkdownView, rhs: CachedMarkdownView) -> Bool {
+        lhs.content == rhs.content
+    }
+    
+    var body: some View {
+        Markdown(content)
+            .markdownTheme(.gitHub)
+            .markdownTextStyle {
+                FontSize(15)
+            }
+            .textSelection(.enabled)
+    }
+}
+
+// MARK: - Height Preference Key
+
+struct MessageHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 

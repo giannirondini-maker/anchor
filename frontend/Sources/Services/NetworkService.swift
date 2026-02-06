@@ -95,8 +95,15 @@ actor NetworkService {
     
     // MARK: - Messages
     
-    func fetchMessages(conversationId: String) async throws -> [Message] {
-        let response: MessagesResponse = try await get(endpoint: "conversations/\(conversationId)/messages")
+    func fetchMessages(conversationId: String, limit: Int? = nil, before: String? = nil) async throws -> [Message] {
+        var queryItems: [URLQueryItem] = []
+        if let limit = limit { queryItems.append(URLQueryItem(name: "limit", value: String(limit))) }
+        if let before = before { queryItems.append(URLQueryItem(name: "before", value: before)) }
+        
+        let response: MessagesResponse = try await get(
+            endpoint: "conversations/\(conversationId)/messages",
+            queryItems: queryItems.isEmpty ? nil : queryItems
+        )
         return response.messages
     }
     
@@ -107,8 +114,18 @@ actor NetworkService {
     
     // MARK: - Private Helpers
     
-    private func get<T: Decodable>(endpoint: String) async throws -> T {
-        let url = baseURL.appendingPathComponent(endpoint)
+    private func get<T: Decodable>(endpoint: String, queryItems: [URLQueryItem]? = nil) async throws -> T {
+        let url: URL
+        if let queryItems = queryItems, !queryItems.isEmpty {
+            var components = URLComponents(url: baseURL.appendingPathComponent(endpoint), resolvingAgainstBaseURL: false)!
+            components.queryItems = queryItems
+            guard let builtURL = components.url else {
+                throw NetworkError.badRequest
+            }
+            url = builtURL
+        } else {
+            url = baseURL.appendingPathComponent(endpoint)
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
