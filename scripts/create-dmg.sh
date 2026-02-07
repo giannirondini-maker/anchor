@@ -254,6 +254,8 @@ You also need an active **GitHub Copilot Pro** or **GitHub Copilot Business** li
 🏷️ **Tags**: Organize conversations with custom tags
 🎨 **Beautiful UI**: Native macOS design with dark mode
 🔒 **Secure**: Uses your GitHub authentication
+📎 **Attachments**: Support for PDF, text, and image files
+⌨️ **Keyboard Shortcuts**: Navigate and control the app efficiently
 
 ## Support
 
