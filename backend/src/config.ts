@@ -34,6 +34,68 @@ const APP_SUPPORT_DIR = path.join(
 export const DATABASE_PATH =
   process.env.DATABASE_PATH || path.join(APP_SUPPORT_DIR, "data.sqlite");
 
+// Attachments configuration
+const ATTACHMENTS_DIR = path.join(APP_SUPPORT_DIR, "attachments");
+const ATTACHMENTS_MAX_FILE_SIZE_BYTES = parseInt(
+  process.env.ATTACHMENTS_MAX_FILE_SIZE_BYTES || String(5 * 1024 * 1024),
+  10
+);
+const ATTACHMENTS_MAX_TOTAL_SIZE_BYTES = parseInt(
+  process.env.ATTACHMENTS_MAX_TOTAL_SIZE_BYTES || String(10 * 1024 * 1024),
+  10
+);
+const ATTACHMENTS_MAX_FILES_PER_MESSAGE = parseInt(
+  process.env.ATTACHMENTS_MAX_FILES_PER_MESSAGE || "5",
+  10
+);
+const ATTACHMENTS_RETENTION_MS = parseInt(
+  process.env.ATTACHMENTS_RETENTION_MS || String(30 * 60 * 1000),
+  10
+);
+const ATTACHMENTS_MAX_EXTRACTED_CHARS = parseInt(
+  process.env.ATTACHMENTS_MAX_EXTRACTED_CHARS || "120000",
+  10
+);
+
+const ATTACHMENTS_ALLOWED_MIME_TYPES = [
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+];
+
+const ATTACHMENTS_ALLOWED_EXTENSIONS = [
+  ".txt",
+  ".md",
+  ".markdown",
+  ".csv",
+  ".json",
+  ".log",
+  ".js",
+  ".ts",
+  ".tsx",
+  ".jsx",
+  ".py",
+  ".swift",
+  ".java",
+  ".go",
+  ".rs",
+  ".rb",
+  ".c",
+  ".h",
+  ".cpp",
+  ".hpp",
+  ".pdf",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+];
+
 // Application metadata
 export const APP_VERSION = "1.0.0";
 export const APP_NAME = "Anchor";
@@ -62,6 +124,16 @@ export const config = {
   },
   database: {
     path: DATABASE_PATH,
+  },
+  attachments: {
+    dir: ATTACHMENTS_DIR,
+    maxFileSizeBytes: ATTACHMENTS_MAX_FILE_SIZE_BYTES,
+    maxTotalSizeBytes: ATTACHMENTS_MAX_TOTAL_SIZE_BYTES,
+    maxFilesPerMessage: ATTACHMENTS_MAX_FILES_PER_MESSAGE,
+    retentionMs: ATTACHMENTS_RETENTION_MS,
+    maxExtractedChars: ATTACHMENTS_MAX_EXTRACTED_CHARS,
+    allowedMimeTypes: ATTACHMENTS_ALLOWED_MIME_TYPES,
+    allowedExtensions: ATTACHMENTS_ALLOWED_EXTENSIONS,
   },
   app: {
     version: APP_VERSION,

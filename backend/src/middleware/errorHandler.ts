@@ -117,6 +117,20 @@ export function errorHandler(
     return;
   }
 
+  if (err.name === "MulterError") {
+    const code = (err as { code?: string }).code;
+    const isSizeError = code === "LIMIT_FILE_SIZE";
+    res.status(400).json({
+      error: {
+        code: isSizeError ? ErrorCodes.ATTACHMENT_TOO_LARGE : ErrorCodes.ATTACHMENT_UPLOAD_FAILED,
+        message: isSizeError
+          ? "Attachment exceeds maximum file size"
+          : "Attachment upload failed",
+      },
+    });
+    return;
+  }
+
   // Categorize and handle the error
   const categorized = categorizeError(err);
   res.status(categorized.statusCode).json({

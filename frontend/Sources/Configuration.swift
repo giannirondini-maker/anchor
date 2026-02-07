@@ -13,19 +13,28 @@ enum Configuration {
     
     /// Whether we're running in development mode (from Xcode/SwiftPM, not bundled app)
     static var isDevelopment: Bool {
-        // Check explicit environment variable first
-        if let env = ProcessInfo.processInfo.environment["ANCHOR_ENV"] {
-            return env == "development"
-        }
-        
-        // If running from a bundled .app, we're in production
-        // In dev mode, the bundle path is typically in DerivedData or .build
+        // First, detect if we're running from a development build location
         let bundlePath = Bundle.main.bundlePath
         let isFromDerivedData = bundlePath.contains("DerivedData")
         let isFromSwiftBuild = bundlePath.contains(".build")
         let isFromXcode = bundlePath.contains("Build/Products")
+        let isDevBuild = isFromDerivedData || isFromSwiftBuild || isFromXcode
         
-        return isFromDerivedData || isFromSwiftBuild || isFromXcode
+        // If it's a dev build, always use development mode (can't use embedded backend)
+        if isDevBuild {
+            if let env = ProcessInfo.processInfo.environment["ANCHOR_ENV"], env == "production" {
+                print("⚠️ ANCHOR_ENV=production set but running from dev build. Using development mode.")
+            }
+            return true
+        }
+        
+        // For production builds, check explicit environment variable
+        if let env = ProcessInfo.processInfo.environment["ANCHOR_ENV"] {
+            return env == "development"
+        }
+        
+        // Default for production builds is production mode
+        return false
     }
     
     // MARK: - Port Configuration
@@ -72,6 +81,17 @@ enum Configuration {
     
     /// Maximum number of messages to load initially per conversation
     static let initialMessageLimit: Int = 50
+
+    // MARK: - Attachments
+
+    /// Max attachments per message
+    static let maxAttachmentsPerMessage: Int = 5
+
+    /// Max size per attachment (bytes)
+    static let maxAttachmentSizeBytes: Int = 5 * 1024 * 1024
+
+    /// Max total attachment size per message (bytes)
+    static let maxTotalAttachmentSizeBytes: Int = 10 * 1024 * 1024
     
     // MARK: - Timeouts
     

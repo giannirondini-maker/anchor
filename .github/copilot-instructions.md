@@ -148,6 +148,7 @@ copilot --version  # Must be 0.0.400+
 
 # 4. Backend setup (development mode)
 cd backend
+nvm use  # Always run before npm install/test/build
 npm install
 npm run dev  # Starts on port 3848 with dev database
 
@@ -219,6 +220,13 @@ SQLite-based persistence for conversations and tags:
 - Uses `better-sqlite3` for synchronous operations
 - In-memory database supported for testing (`:memory:`)
 
+### Attachments
+
+- **Routes**: `POST /api/attachments`, `PUT /api/attachments/:id`, `DELETE /api/attachments/:id`
+- **Service**: `src/services/attachment.service.ts` stages uploads on disk and builds a text context block for prompts.
+- **Supported types**: text/markdown/csv/json, PDF, and images; Excel formats are intentionally disabled.
+- **PDF parsing**: use `PDFParse` from `pdf-parse` and call `destroy()` after extraction.
+
 ### API Routes
 
 | Method | Endpoint | Description |
@@ -280,6 +288,11 @@ Connection: `ws://localhost:3848/ws` (dev) or `ws://localhost:3847/ws` (prod)
 - **NetworkService**: HTTP API client for REST endpoints
 - **WebSocketService**: Real-time chat communication
 - **BackendManager**: Manages embedded backend lifecycle (in bundled app)
+
+### Attachment Handling (Frontend)
+
+- Attachment selection uses `NSOpenPanel`; access is wrapped in `startAccessingSecurityScopedResource()` to read metadata and upload file bytes.
+- Pending attachments live in `ChatViewModel.pendingAttachments` and are uploaded via `NetworkService` before sending messages.
 
 ### Configuration
 
@@ -410,6 +423,13 @@ Test files: `frontend/Tests/`
 3. Add API route if HTTP access needed
 4. Add WebSocket message type if real-time needed
 5. Update frontend services and views
+
+---
+
+## Performance Notes
+
+- Streaming updates are batched in `ChatViewModel` to reduce layout thrash.
+- Message list auto-scroll only follows new messages when the user is pinned to the bottom.
 
 ---
 
@@ -601,5 +621,5 @@ rm backend/data/anchor.db
 
 ## Future Development Areas
 
-- [ ] Possibility to provide attachments in the conversation
+- [ ] OCR for image attachments
 - [ ] CI/CD for Auto-release mechanism

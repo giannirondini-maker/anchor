@@ -11,16 +11,23 @@ struct MessageInputView: View {
     @Binding var text: String
     let isLoading: Bool
     var isConnected: Bool = true
+    var attachments: [PendingAttachment] = []
+    var isAttachmentReady: Bool = true
     let onSend: () -> Void
+    var onAddAttachments: (([URL]) -> Void)? = nil
+    var onRemoveAttachment: ((PendingAttachment) -> Void)? = nil
+    var onRenameAttachment: ((PendingAttachment, String) -> Void)? = nil
     
     @State private var isFocused: Bool = false
     @State private var textHeight: CGFloat = 22
+    @State private var editingAttachmentId: UUID?
+    @State private var editedAttachmentName: String = ""
     
     // Allow sending when not loading and text is not empty
     // Note: We removed isConnected requirement - messages are sent via HTTP,
     // WebSocket is only for receiving streaming responses
     private var canSend: Bool {
-        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading && isAttachmentReady
     }
     
     var body: some View {
@@ -40,8 +47,35 @@ struct MessageInputView: View {
                 .frame(maxWidth: .infinity)
                 .background(Color.orange.opacity(0.1))
             }
+
+            if !attachments.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(attachments) { attachment in
+                            attachmentChip(for: attachment)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                }
+                .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
+            }
             
             HStack(alignment: .bottom, spacing: 12) {
+                Button {
+                    openAttachmentPanel()
+                } label: {
+                    Image(systemName: "paperclip")
+                        .font(.system(size: 18))
+                        .foregroundColor(.secondary)
+                        .padding(6)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add attachments")
+                .accessibilityHint("Attach files to the next message")
+
                 // Text Input using custom NSTextView
                 SubmittableTextViewRepresentable(
                     text: $text,
@@ -90,6 +124,91 @@ struct MessageInputView: View {
         .background(Color(NSColor.windowBackgroundColor))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Message input area")
+    }
+    
+    @ViewBuilder
+    private func attachmentChip(for attachment: PendingAttachment) -> some View {
+        HStack(spacing: 6) {
+            statusIcon(for: attachment.status)
+
+            if editingAttachmentId == attachment.id {
+                TextField("Name", text: $editedAttachmentName, onCommit: {
+                    let trimmed = editedAttachmentName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        onRenameAttachment?(attachment, trimmed)
+                    }
+                    editingAttachmentId = nil
+                    editedAttachmentName = ""
+                })
+                .textFieldStyle(.plain)
+                .frame(minWidth: 120)
+            } else {
+                Text(attachment.displayName)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Button {
+                editingAttachmentId = attachment.id
+                editedAttachmentName = attachment.displayName
+            } label: {
+                Image(systemName: "pencil")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Rename attachment")
+
+            Button {
+                onRemoveAttachment?(attachment)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove attachment")
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(Color(NSColor.windowBackgroundColor))
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func statusIcon(for status: PendingAttachmentStatus) -> some View {
+        switch status {
+        case .uploading:
+            ProgressView()
+                .scaleEffect(0.6)
+        case .uploaded:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundColor(.green)
+        case .failed:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundColor(.red)
+        }
+    }
+
+    private func openAttachmentPanel() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        panel.title = "Select Attachments"
+        panel.message = "Choose files to attach to your message"
+
+        panel.begin { response in
+            guard response == .OK else { return }
+            onAddAttachments?(panel.urls)
+        }
     }
 }
 

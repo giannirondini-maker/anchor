@@ -11,6 +11,7 @@ import {
   updateMessage,
 } from "../services/database.service.js";
 import { copilotService } from "../services/copilot.service.js";
+import { attachmentService } from "../services/attachment.service.js";
 import { broadcastToConversation } from "../websocket/handler.js";
 import { AppError, SendMessageResponse, ErrorCodes } from "../types/index.js";
 import { config } from "../config.js";
@@ -59,10 +60,44 @@ router.post("/:id/messages", messageLimiter, validateBody(SendMessageSchema), as
     const { id: conversationId } = req.params;
     const body = req.body as SendMessageInput;
 
+    attachmentService.purgeExpired();
+
     const conversation = getConversationById(conversationId);
     if (!conversation) {
       throw new AppError(ErrorCodes.CONVERSATION_NOT_FOUND, "Conversation not found", 404);
     }
+
+    const attachmentRefs = body.attachments || [];
+    const attachmentIds = attachmentRefs.map((attachment) => attachment.id);
+    const attachmentRecords = attachmentIds.length
+      ? attachmentService.resolveAttachments(attachmentIds, conversationId)
+      : [];
+
+    if (attachmentRefs.length > config.attachments.maxFilesPerMessage) {
+      throw new AppError(ErrorCodes.ATTACHMENT_LIMIT_EXCEEDED, "Too many attachments", 400);
+    }
+
+    const totalAttachmentSize = attachmentRecords.reduce(
+      (total, record) => total + record.size,
+      0
+    );
+
+    if (totalAttachmentSize > config.attachments.maxTotalSizeBytes) {
+      throw new AppError(
+        ErrorCodes.ATTACHMENT_LIMIT_EXCEEDED,
+        "Total attachment size exceeded",
+        400
+      );
+    }
+
+    attachmentRefs.forEach((attachment) => {
+      if (attachment.displayName) {
+        attachmentService.updateDisplayName(attachment.id, attachment.displayName);
+      }
+    });
+
+    const attachmentContext = await attachmentService.buildAttachmentContext(attachmentRecords);
+    const prompt = `${body.content.trim()}${attachmentContext}`.trim();
 
     // Create user message
     const userMessageId = `msg_${uuidv4()}`;
@@ -106,7 +141,7 @@ router.post("/:id/messages", messageLimiter, validateBody(SendMessageSchema), as
     // Send to SDK and stream response
     copilotService.sendMessage(
       conversationId,
-      body.content.trim(),
+      prompt,
       // onDelta
       (content: string) => {
         broadcastToConversation(conversationId, "message:delta", {
@@ -122,6 +157,8 @@ router.post("/:id/messages", messageLimiter, validateBody(SendMessageSchema), as
           status: "sent",
         });
 
+        attachmentService.removeAttachments(attachmentIds);
+
         broadcastToConversation(conversationId, "message:complete", {
           messageId: assistantMessageId,
           fullContent,
@@ -133,6 +170,8 @@ router.post("/:id/messages", messageLimiter, validateBody(SendMessageSchema), as
           status: "error",
           errorMessage: error.message,
         });
+
+        attachmentService.removeAttachments(attachmentIds);
 
         broadcastToConversation(conversationId, "message:error", {
           messageId: assistantMessageId,

@@ -111,6 +111,72 @@ actor NetworkService {
         let body: [String: Any] = ["content": content]
         return try await post(endpoint: "conversations/\(conversationId)/messages", body: body)
     }
+
+    func sendMessage(
+        conversationId: String,
+        content: String,
+        attachments: [MessageAttachmentReference]?
+    ) async throws -> SendMessageResponse {
+        var body: [String: Any] = ["content": content]
+        if let attachments = attachments, !attachments.isEmpty {
+            let encoded = attachments.map { attachment in
+                var item: [String: Any] = ["id": attachment.id]
+                if let displayName = attachment.displayName {
+                    item["displayName"] = displayName
+                }
+                return item
+            }
+            body["attachments"] = encoded
+        }
+        return try await post(endpoint: "conversations/\(conversationId)/messages", body: body)
+    }
+
+    // MARK: - Attachments
+
+    func uploadAttachment(
+        conversationId: String,
+        fileURL: URL,
+        displayName: String? = nil
+    ) async throws -> Attachment {
+        let url = baseURL.appendingPathComponent("attachments")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+
+        let boundary = "Boundary-\(UUID().uuidString)"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+        body.append(formField: "conversationId", value: conversationId, using: boundary)
+        if let displayName = displayName {
+            body.append(formField: "displayName", value: displayName, using: boundary)
+        }
+
+        let fileData = try Data(contentsOf: fileURL)
+        let filename = fileURL.lastPathComponent
+        let mimeType = mimeTypeForExtension(fileURL.pathExtension)
+        body.append(fileField: "file", filename: filename, mimeType: mimeType, fileData: fileData, using: boundary)
+        body.appendString("--\(boundary)--\r\n")
+
+        request.httpBody = body
+
+        let (data, response) = try await session.data(for: request)
+        try validateResponse(response)
+
+        let decoded = try decoder.decode(AttachmentUploadResponse.self, from: data)
+        guard let attachment = decoded.attachments.first else {
+            throw NetworkError.badRequest
+        }
+        return attachment
+    }
+
+    func updateAttachmentName(attachmentId: String, displayName: String) async throws -> Attachment {
+        let body: [String: Any] = ["displayName": displayName]
+        return try await put(endpoint: "attachments/\(attachmentId)", body: body)
+    }
+
+    func deleteAttachment(attachmentId: String) async throws {
+        try await delete(endpoint: "attachments/\(attachmentId)")
+    }
     
     // MARK: - Private Helpers
     
@@ -214,6 +280,53 @@ actor NetworkService {
         default:
             throw NetworkError.unknown(httpResponse.statusCode)
         }
+    }
+
+    private func mimeTypeForExtension(_ ext: String) -> String {
+        switch ext.lowercased() {
+        case "txt", "log": return "text/plain"
+        case "md", "markdown": return "text/markdown"
+        case "csv": return "text/csv"
+        case "json": return "application/json"
+        case "pdf": return "application/pdf"
+        case "png": return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "webp": return "image/webp"
+        case "js", "ts", "tsx", "jsx", "py", "swift", "java", "go", "rs", "rb", "c", "h", "cpp", "hpp":
+            return "text/plain"
+        default:
+            return "application/octet-stream"
+        }
+    }
+}
+
+// MARK: - Multipart Helpers
+
+private extension Data {
+    mutating func appendString(_ string: String) {
+        if let data = string.data(using: .utf8) {
+            append(data)
+        }
+    }
+
+    mutating func append(formField name: String, value: String, using boundary: String) {
+        appendString("--\(boundary)\r\n")
+        appendString("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n")
+        appendString("\(value)\r\n")
+    }
+
+    mutating func append(
+        fileField name: String,
+        filename: String,
+        mimeType: String,
+        fileData: Data,
+        using boundary: String
+    ) {
+        appendString("--\(boundary)\r\n")
+        appendString("Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(filename)\"\r\n")
+        appendString("Content-Type: \(mimeType)\r\n\r\n")
+        append(fileData)
+        appendString("\r\n")
     }
 }
 

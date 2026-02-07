@@ -68,11 +68,35 @@ export interface MessageRow {
 
 export interface SendMessageRequest {
   content: string;
+  attachments?: MessageAttachmentReference[];
 }
 
 export interface SendMessageResponse {
   messageId: string;
   status: "streaming";
+}
+
+export interface MessageAttachmentReference {
+  id: string;
+  displayName?: string;
+}
+
+export interface AttachmentMetadata {
+  id: string;
+  conversationId: string;
+  originalName: string;
+  displayName: string;
+  size: number;
+  mimeType: string;
+  createdAt: string;
+}
+
+export interface AttachmentUploadResponse {
+  attachments: AttachmentMetadata[];
+}
+
+export interface AttachmentUpdateRequest {
+  displayName: string;
 }
 
 // ============================================================================
@@ -287,6 +311,13 @@ export const ErrorCodes = {
   MESSAGE_NOT_FOUND: "MESSAGE_NOT_FOUND",
   MESSAGE_SEND_FAILED: "MESSAGE_SEND_FAILED",
   INVALID_MESSAGE_CONTENT: "INVALID_MESSAGE_CONTENT",
+
+  // Attachment Errors
+  ATTACHMENT_NOT_FOUND: "ATTACHMENT_NOT_FOUND",
+  ATTACHMENT_INVALID: "ATTACHMENT_INVALID",
+  ATTACHMENT_TOO_LARGE: "ATTACHMENT_TOO_LARGE",
+  ATTACHMENT_LIMIT_EXCEEDED: "ATTACHMENT_LIMIT_EXCEEDED",
+  ATTACHMENT_UPLOAD_FAILED: "ATTACHMENT_UPLOAD_FAILED",
 
   // General Errors
   INVALID_REQUEST: "INVALID_REQUEST",

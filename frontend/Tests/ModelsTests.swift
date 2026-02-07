@@ -120,6 +120,36 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(message.status, .error)
         XCTAssertEqual(message.errorMessage, "Rate limit exceeded")
     }
+
+    func testMessageWithAttachmentsDecoding() throws {
+        let json = """
+        {
+            "id": "msg_789",
+            "conversationId": "conv_456",
+            "role": "user",
+            "content": "See attached",
+            "createdAt": "2026-01-29T10:35:00.000Z",
+            "status": "sent",
+            "attachments": [
+                {
+                    "id": "att_123",
+                    "conversationId": "conv_456",
+                    "originalName": "spec.pdf",
+                    "displayName": "spec.pdf",
+                    "size": 1024,
+                    "mimeType": "application/pdf",
+                    "createdAt": "2026-01-29T10:34:00.000Z"
+                }
+            ]
+        }
+        """.data(using: .utf8)!
+
+        let message = try JSONDecoder().decode(Message.self, from: json)
+
+        XCTAssertEqual(message.attachments?.count, 1)
+        XCTAssertEqual(message.attachments?.first?.id, "att_123")
+        XCTAssertEqual(message.attachments?.first?.mimeType, "application/pdf")
+    }
     
     func testMessageRoles() {
         XCTAssertEqual(MessageRole.user.rawValue, "user")

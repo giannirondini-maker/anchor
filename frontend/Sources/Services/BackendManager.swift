@@ -108,6 +108,14 @@ class BackendManager: ObservableObject {
         // Verify required files exist
         let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: nodePath) else {
+            let bundlePath = Bundle.main.bundlePath
+            let isDevBundle = bundlePath.contains("DerivedData") || bundlePath.contains(".build") || bundlePath.contains("Build/Products")
+            if isDevBundle {
+                print("⚠️ Running from dev build without embedded Node.js. Falling back to development mode.")
+                print("💡 To test production mode, build the app with: ./scripts/build-unified.sh")
+                startDevMode()
+                return
+            }
             lastError = "Node.js runtime not found at: \(nodePath)"
             print("❌ \(lastError ?? "")")
             
@@ -370,11 +378,13 @@ class BackendManager: ObservableObject {
                         }
                     } else {
                         if self.isDevelopment {
-                            self.lastError = "Backend not found. Start it with: cd backend && ANCHOR_ENV=development npm run dev"
+                            self.lastError = "Backend not found. Start it with: cd backend && npm run dev"
+                            print("❌ \(self.lastError ?? "")")
+                            print("💡 Make sure to run 'nvm use' before starting the backend")
                         } else {
                             self.lastError = "Backend failed to start within timeout"
+                            print("❌ \(self.lastError ?? "")")
                         }
-                        print("❌ \(self.lastError ?? "")")
                         self.healthCheckRetries = 0
                     }
                 }

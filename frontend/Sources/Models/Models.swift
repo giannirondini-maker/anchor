@@ -74,9 +74,10 @@ struct Message: Identifiable, Codable, Equatable {
     let createdAt: Date
     var status: MessageStatus
     var errorMessage: String?
+    var attachments: [Attachment]?
     
     enum CodingKeys: String, CodingKey {
-        case id, role, content, status
+        case id, role, content, status, attachments
         case conversationId = "conversationId"
         case createdAt = "createdAt"
         case errorMessage = "errorMessage"
@@ -90,6 +91,7 @@ struct Message: Identifiable, Codable, Equatable {
         content = try container.decode(String.self, forKey: .content)
         status = try container.decode(MessageStatus.self, forKey: .status)
         errorMessage = try container.decodeIfPresent(String.self, forKey: .errorMessage)
+        attachments = try container.decodeIfPresent([Attachment].self, forKey: .attachments)
         
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -102,7 +104,8 @@ struct Message: Identifiable, Codable, Equatable {
     }
     
     init(id: String, conversationId: String, role: MessageRole, content: String,
-         createdAt: Date = Date(), status: MessageStatus = .sent, errorMessage: String? = nil) {
+         createdAt: Date = Date(), status: MessageStatus = .sent, errorMessage: String? = nil,
+         attachments: [Attachment]? = nil) {
         self.id = id
         self.conversationId = conversationId
         self.role = role
@@ -110,6 +113,7 @@ struct Message: Identifiable, Codable, Equatable {
         self.createdAt = createdAt
         self.status = status
         self.errorMessage = errorMessage
+        self.attachments = attachments
     }
 }
 
@@ -203,6 +207,40 @@ struct ModelsResponse: Codable {
 struct SendMessageResponse: Codable {
     let messageId: String
     let status: String
+}
+
+struct Attachment: Identifiable, Codable, Equatable {
+    let id: String
+    let conversationId: String
+    let originalName: String
+    var displayName: String
+    let size: Int
+    let mimeType: String
+    let createdAt: String
+}
+
+struct AttachmentUploadResponse: Codable {
+    let attachments: [Attachment]
+}
+
+struct MessageAttachmentReference: Codable, Equatable {
+    let id: String
+    let displayName: String?
+}
+
+enum PendingAttachmentStatus: Equatable {
+    case uploading
+    case uploaded(Attachment)
+    case failed(String)
+}
+
+struct PendingAttachment: Identifiable, Equatable {
+    let id: UUID
+    let fileURL: URL
+    var displayName: String
+    let size: Int
+    let mimeType: String
+    var status: PendingAttachmentStatus
 }
 
 struct HealthResponse: Codable {

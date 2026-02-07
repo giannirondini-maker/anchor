@@ -15,7 +15,8 @@ struct MessageListView: View {
     var onRetry: ((Message, String) -> Void)?  // Now passes the edited content
     var onLoadOlder: (() -> Void)?
     
-    @State private var scrollToBottom = false
+    @State private var isPinnedToBottom = true
+    @State private var scrollViewHeight: CGFloat = 0
     
     private var showStreamingIndicator: Bool {
         guard isLoading else { return false }
@@ -48,15 +49,38 @@ struct MessageListView: View {
                 }
                 .padding()
             }
+            .defaultScrollAnchor(.bottom)
+            .id("scroll-\(messages.first?.id ?? "empty")")
+            .coordinateSpace(name: "messageScroll")
+            .background(
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: ScrollViewHeightPreferenceKey.self,
+                        value: geo.size.height
+                    )
+                }
+            )
             .accessibilityLabel("Message history")
-            .onChange(of: messages.count) { _, _ in
-                withAnimation {
-                    proxy.scrollTo("bottom", anchor: .bottom)
+            .onPreferenceChange(ScrollViewHeightPreferenceKey.self) { height in
+                scrollViewHeight = height
+            }
+            .onPreferenceChange(BottomAnchorPreferenceKey.self) { bottomY in
+                isPinnedToBottom = bottomY <= scrollViewHeight + 12
+            }
+            .onChange(of: messages.count) { oldCount, newCount in
+                guard isPinnedToBottom else { return }
+                
+                // Scroll to bottom when new messages arrive
+                DispatchQueue.main.async {
+                    withAnimation {
+                        proxy.scrollTo("bottom", anchor: .bottom)
+                    }
                 }
             }
             .onChange(of: messages.last?.content) { _, _ in
                 // Scroll when streaming content updates
-                withAnimation {
+                guard isPinnedToBottom else { return }
+                DispatchQueue.main.async {
                     proxy.scrollTo("bottom", anchor: .bottom)
                 }
             }
@@ -107,6 +131,30 @@ struct MessageListView: View {
         Color.clear
             .frame(height: 1)
             .id("bottom")
+            .background(
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: BottomAnchorPreferenceKey.self,
+                        value: geo.frame(in: .named("messageScroll")).maxY
+                    )
+                }
+            )
+    }
+}
+
+private struct BottomAnchorPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct ScrollViewHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 
@@ -127,7 +175,8 @@ struct MessageBubbleView: View, Equatable {
         lhs.message.id == rhs.message.id &&
         lhs.message.content == rhs.message.content &&
         lhs.message.status == rhs.message.status &&
-        lhs.message.errorMessage == rhs.message.errorMessage
+        lhs.message.errorMessage == rhs.message.errorMessage &&
+        lhs.message.attachments == rhs.message.attachments
     }
 
     private var isUser: Bool {
@@ -177,6 +226,10 @@ struct MessageBubbleView: View, Equatable {
 
                 // Message content
                 VStack(alignment: .leading, spacing: 8) {
+                    if isUser, let attachments = message.attachments, !attachments.isEmpty {
+                        attachmentList(attachments)
+                    }
+
                     if message.status == .sending && message.content.isEmpty {
                         HStack(spacing: 4) {
                             ForEach(0..<3) { i in
@@ -349,6 +402,30 @@ struct MessageBubbleView: View, Equatable {
                 showCopiedFeedback = false
             }
         }
+    }
+
+    @ViewBuilder
+    private func attachmentList(_ attachments: [Attachment]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Attachments")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            ForEach(attachments) { attachment in
+                HStack(spacing: 6) {
+                    Image(systemName: "paperclip")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Text(attachment.displayName)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+        }
+        .padding(8)
+        .background(Color.primary.opacity(0.04))
+        .cornerRadius(8)
     }
 }
 
