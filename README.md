@@ -24,6 +24,7 @@ Anchor is a desktop application that lets you interact with Large Language Model
 - 🏷️ Conversation tagging and organization
 - 🔍 Search by title or tags
 - 📋 Copy messages to clipboard
+- 📎 Attachments (PDF, text, images)
 - ⌨️ Keyboard shortcuts
 
 ----
@@ -90,7 +91,7 @@ copilot --version  # Should show 0.0.400 or later
 ```bash
 cd backend
 
-# Ensure you're using Node.js 20
+# Ensure you're using Node.js 20 (run this before npm install/test/build)
 nvm use
 
 # Install dependencies
@@ -166,6 +167,9 @@ Anchor/
 | GET | `/api/conversations/:id/messages` | Get messages |
 | POST | `/api/conversations/:id/messages` | Send message |
 | POST | `/api/conversations/:id/messages/:messageId/retry` | Retry failed message |
+| POST | `/api/attachments` | Upload attachment |
+| PUT | `/api/attachments/:id` | Rename attachment |
+| DELETE | `/api/attachments/:id` | Delete attachment |
 
 ## WebSocket Events
 
@@ -232,7 +236,7 @@ swift test       # Run tests
 
 ## Future Development Areas
 
-- [ ] Possibility to provide attachments in the conversation
+- [ ] OCR support for image attachments
 - [ ] CI/CD for Auto-release mechanism
 
 ## License

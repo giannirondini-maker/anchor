@@ -92,5 +92,16 @@ describe("Configuration", () => {
       expect(config.cors).toBeDefined();
       expect(config.cors.origin).toBe(CORS_ORIGIN);
     });
+
+    it("should not allow Excel attachment types", () => {
+      expect(config.attachments.allowedExtensions).not.toContain(".xls");
+      expect(config.attachments.allowedExtensions).not.toContain(".xlsx");
+      expect(config.attachments.allowedMimeTypes).not.toContain(
+        "application/vnd.ms-excel"
+      );
+      expect(config.attachments.allowedMimeTypes).not.toContain(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+    });
   });
 });

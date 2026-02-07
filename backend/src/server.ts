@@ -14,6 +14,7 @@ import modelsRoutes from "./routes/models.js";
 import agentsRoutes from "./routes/agents.js";
 import conversationsRoutes from "./routes/conversations.js";
 import messagesRoutes from "./routes/messages.js";
+import attachmentsRoutes from "./routes/attachments.js";
 
 // Middleware
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -70,6 +71,7 @@ export function createServer(): ServerInstance {
   app.use("/api/auth", authRoutes);
   app.use("/api/models", modelsRoutes);
   app.use("/api/agents", agentsRoutes);
+  app.use("/api/attachments", attachmentsRoutes);
   app.use("/api/conversations", conversationsRoutes);
   // Messages routes are nested under conversations
   app.use("/api/conversations", messagesRoutes);

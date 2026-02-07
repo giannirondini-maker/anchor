@@ -19,6 +19,7 @@ class AppState: ObservableObject {
     @Published var isDataLoaded: Bool = false
     @Published var isDraftMode: Bool = false
     @Published var pendingMessage: (conversationId: String, message: String)? = nil
+    @Published var pendingAttachmentURLs: (conversationId: String, urls: [URL])? = nil
     @Published var isLoadingModels: Bool = true
     
     // Message cache: stores messages per conversation to avoid reloading

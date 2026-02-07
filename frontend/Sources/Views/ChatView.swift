@@ -6,6 +6,7 @@
 
 import SwiftUI
 import Combine
+import UniformTypeIdentifiers
 
 struct ChatView: View {
     @EnvironmentObject var appState: AppState
@@ -68,10 +69,27 @@ struct ChatView: View {
                 text: $viewModel.inputText,
                 isLoading: viewModel.isStreaming,
                 isConnected: viewModel.isConnected,
+                attachments: viewModel.pendingAttachments,
+                isAttachmentReady: viewModel.isAttachmentReady,
                 onSend: {
                     Task {
                         await viewModel.sendMessage()
                         appState.moveConversationToTop(id: conversation.id)
+                    }
+                },
+                onAddAttachments: { urls in
+                    Task {
+                        await viewModel.addAttachments(from: urls)
+                    }
+                },
+                onRemoveAttachment: { attachment in
+                    Task {
+                        await viewModel.removeAttachment(attachment)
+                    }
+                },
+                onRenameAttachment: { attachment, name in
+                    Task {
+                        await viewModel.renameAttachment(attachment, newName: name)
                     }
                 }
             )
@@ -80,6 +98,18 @@ struct ChatView: View {
         .onAppear {
             viewModel.setAppState(appState)
             viewModel.selectedModel = conversation.model ?? Configuration.defaultModel
+            
+            // Check for pending attachments (from draft mode)
+            if let pending = appState.pendingAttachmentURLs,
+               pending.conversationId == conversation.id {
+                let urlsToUpload = pending.urls
+                appState.pendingAttachmentURLs = nil // Clear immediately
+                
+                Task {
+                    // Upload the attachments
+                    await viewModel.addAttachments(from: urlsToUpload)
+                }
+            }
             
             // Check for pending message (from draft conversation)
             // Only send if it's for THIS specific conversation and hasn't been sent yet
@@ -122,6 +152,7 @@ class ChatViewModel: ObservableObject {
     @Published var error: String?
     @Published var hasOlderMessages: Bool = false
     @Published var isLoadingOlder: Bool = false
+    @Published var pendingAttachments: [PendingAttachment] = []
 
     private var conversationId: String
     private let networkService = NetworkService.shared
@@ -137,6 +168,14 @@ class ChatViewModel: ObservableObject {
     private var batchUpdateTask: Task<Void, Never>?
     private var pendingStreamContent: String?
     private var pendingStreamMessageId: String?
+
+    var isAttachmentReady: Bool {
+        !pendingAttachments.contains { attachment in
+            if case .uploading = attachment.status { return true }
+            if case .failed = attachment.status { return true }
+            return false
+        }
+    }
 
     init(conversationId: String) {
         self.conversationId = conversationId
@@ -369,8 +408,24 @@ class ChatViewModel: ObservableObject {
     func sendMessage() async {
         let content = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return }
+
+        if !isAttachmentReady {
+            error = "Please wait for attachments to finish uploading or remove failed items."
+            return
+        }
         
         inputText = ""
+
+        let uploadedAttachments = pendingAttachments.compactMap { attachment -> Attachment? in
+            if case .uploaded(let uploaded) = attachment.status {
+                return uploaded
+            }
+            return nil
+        }
+
+        let attachmentRefs = uploadedAttachments.map {
+            MessageAttachmentReference(id: $0.id, displayName: $0.displayName)
+        }
         
         // Add user message immediately
         let userMessage = Message(
@@ -378,7 +433,8 @@ class ChatViewModel: ObservableObject {
             conversationId: conversationId,
             role: .user,
             content: content,
-            status: .sent
+            status: .sent,
+            attachments: uploadedAttachments.isEmpty ? nil : uploadedAttachments
         )
         messages.append(userMessage)
         
@@ -388,7 +444,8 @@ class ChatViewModel: ObservableObject {
         do {
             let response = try await networkService.sendMessage(
                 conversationId: conversationId,
-                content: content
+                content: content,
+                attachments: attachmentRefs.isEmpty ? nil : attachmentRefs
             )
             
             // Update user message with real ID if needed
@@ -398,6 +455,7 @@ class ChatViewModel: ObservableObject {
             }
             
             _ = response // Response indicates streaming started
+            pendingAttachments.removeAll()
         } catch {
             self.error = error.localizedDescription
         }
@@ -418,6 +476,7 @@ class ChatViewModel: ObservableObject {
         streamingContent = ""
         pendingStreamContent = nil
         pendingStreamMessageId = nil
+        pendingAttachments.removeAll()
 
         // Check cache first before clearing messages
         if let cachedMessages = appState?.getCachedMessages(for: newConversationId) {
@@ -477,10 +536,152 @@ class ChatViewModel: ObservableObject {
         do {
             _ = try await networkService.sendMessage(
                 conversationId: conversationId,
-                content: content
+                content: content,
+                attachments: nil
             )
         } catch {
             self.error = error.localizedDescription
+        }
+    }
+
+    func addAttachments(from urls: [URL]) async {
+        guard !urls.isEmpty else { return }
+
+        for url in urls {
+            // Request security-scoped resource access for sandboxed apps
+            let accessGranted = url.startAccessingSecurityScopedResource()
+
+            if pendingAttachments.count >= Configuration.maxAttachmentsPerMessage {
+                error = "You can attach up to \(Configuration.maxAttachmentsPerMessage) files."
+                if accessGranted {
+                    url.stopAccessingSecurityScopedResource()
+                }
+                break
+            }
+
+            guard let fileSize = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize else {
+                error = "Failed to read attachment size."
+                if accessGranted {
+                    url.stopAccessingSecurityScopedResource()
+                }
+                continue
+            }
+
+            if fileSize > Configuration.maxAttachmentSizeBytes {
+                error = "\(url.lastPathComponent) is too large."
+                if accessGranted {
+                    url.stopAccessingSecurityScopedResource()
+                }
+                continue
+            }
+
+            let currentTotal = pendingAttachments.reduce(0) { total, attachment in
+                total + attachment.size
+            }
+
+            if currentTotal + fileSize > Configuration.maxTotalAttachmentSizeBytes {
+                error = "Total attachment size exceeds the limit."
+                if accessGranted {
+                    url.stopAccessingSecurityScopedResource()
+                }
+                continue
+            }
+
+            let mimeType = mimeTypeForExtension(url.pathExtension)
+            let pending = PendingAttachment(
+                id: UUID(),
+                fileURL: url,
+                displayName: url.lastPathComponent,
+                size: fileSize,
+                mimeType: mimeType,
+                status: .uploading
+            )
+
+            pendingAttachments.append(pending)
+
+            do {
+                let uploaded = try await networkService.uploadAttachment(
+                    conversationId: conversationId,
+                    fileURL: url,
+                    displayName: pending.displayName
+                )
+
+                updatePendingAttachment(pending.id) { attachment in
+                    attachment.status = .uploaded(uploaded)
+                    attachment.displayName = uploaded.displayName
+                }
+            } catch {
+                updatePendingAttachment(pending.id) { attachment in
+                    attachment.status = .failed(error.localizedDescription)
+                }
+            }
+            
+            // Release security-scoped resource access after upload is complete
+            if accessGranted {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+    }
+
+    func removeAttachment(_ attachment: PendingAttachment) async {
+        if case .uploaded(let uploaded) = attachment.status {
+            do {
+                try await networkService.deleteAttachment(attachmentId: uploaded.id)
+            } catch {
+                self.error = error.localizedDescription
+            }
+        }
+
+        pendingAttachments.removeAll { $0.id == attachment.id }
+    }
+
+    func renameAttachment(_ attachment: PendingAttachment, newName: String) async {
+        guard !newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
+        updatePendingAttachment(attachment.id) { pending in
+            pending.displayName = newName
+        }
+
+        if case .uploaded(let uploaded) = attachment.status {
+            do {
+                let updated = try await networkService.updateAttachmentName(
+                    attachmentId: uploaded.id,
+                    displayName: newName
+                )
+
+                updatePendingAttachment(attachment.id) { pending in
+                    pending.status = .uploaded(updated)
+                    pending.displayName = updated.displayName
+                }
+            } catch {
+                updatePendingAttachment(attachment.id) { pending in
+                    pending.status = .failed(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    private func updatePendingAttachment(_ id: UUID, update: (inout PendingAttachment) -> Void) {
+        guard let index = pendingAttachments.firstIndex(where: { $0.id == id }) else { return }
+        var attachment = pendingAttachments[index]
+        update(&attachment)
+        pendingAttachments[index] = attachment
+    }
+
+    private func mimeTypeForExtension(_ ext: String) -> String {
+        switch ext.lowercased() {
+        case "txt", "log": return "text/plain"
+        case "md", "markdown": return "text/markdown"
+        case "csv": return "text/csv"
+        case "json": return "application/json"
+        case "pdf": return "application/pdf"
+        case "png": return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "webp": return "image/webp"
+        case "js", "ts", "tsx", "jsx", "py", "swift", "java", "go", "rs", "rb", "c", "h", "cpp", "hpp":
+            return "text/plain"
+        default:
+            return "application/octet-stream"
         }
     }
     

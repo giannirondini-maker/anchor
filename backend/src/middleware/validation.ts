@@ -75,6 +75,15 @@ export const SendMessageSchema = z.object({
       (val) => val.trim().length > 0,
       "Message content cannot be empty or only whitespace"
     ),
+  attachments: z
+    .array(
+      z.object({
+        id: z.string().regex(/^att_[a-f0-9-]+$/, "Invalid attachment ID format"),
+        displayName: z.string().min(1).max(255).optional(),
+      })
+    )
+    .max(5, "Too many attachments")
+    .optional(),
 });
 
 export type SendMessageInput = z.infer<typeof SendMessageSchema>;

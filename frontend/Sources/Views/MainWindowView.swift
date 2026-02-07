@@ -81,6 +81,15 @@ struct DraftChatView: View {
     @State private var inputText: String = ""
     @State private var selectedModel: String = Configuration.defaultModel
     @State private var wittyMessage: String = ""
+    @State private var pendingAttachments: [PendingAttachment] = []
+    
+    private var isAttachmentReady: Bool {
+        !pendingAttachments.contains { attachment in
+            if case .uploading = attachment.status { return true }
+            if case .failed = attachment.status { return true }
+            return false
+        }
+    }
     
     private let wittyMessages = [
         "What brilliant idea shall we explore today?",
@@ -180,7 +189,24 @@ struct DraftChatView: View {
                 text: $inputText,
                 isLoading: false,
                 isConnected: true,
-                onSend: sendMessage
+                attachments: pendingAttachments,
+                isAttachmentReady: isAttachmentReady,
+                onSend: sendMessage,
+                onAddAttachments: { urls in
+                    Task {
+                        await handleAttachments(urls)
+                    }
+                },
+                onRemoveAttachment: { attachment in
+                    pendingAttachments.removeAll { $0.id == attachment.id }
+                },
+                onRenameAttachment: { attachment, newName in
+                    if let index = pendingAttachments.firstIndex(where: { $0.id == attachment.id }) {
+                        var updated = pendingAttachments[index]
+                        updated.displayName = newName
+                        pendingAttachments[index] = updated
+                    }
+                }
             )
         }
         .background(Color(NSColor.windowBackgroundColor))
@@ -189,6 +215,22 @@ struct DraftChatView: View {
             wittyMessage = wittyMessages.randomElement() ?? "What can I help you with today?"
             // Set default model from available models
             selectedModel = AppState.chooseModel(requested: nil, available: appState.availableModels)
+        }
+    }
+    
+    private func handleAttachments(_ urls: [URL]) async {
+        guard !urls.isEmpty else { return }
+        
+        // Create conversation immediately when attachment is added
+        await appState.createConversation(title: "New Conversation", model: selectedModel)
+        
+        // Exit draft mode and switch to the new conversation
+        appState.isDraftMode = false
+        
+        // The ChatView will now handle uploading the attachments
+        // Store the attachment URLs temporarily so ChatView can pick them up
+        if let conversationId = appState.selectedConversationId {
+            appState.pendingAttachmentURLs = (conversationId: conversationId, urls: urls)
         }
     }
     

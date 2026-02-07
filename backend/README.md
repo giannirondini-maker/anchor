@@ -33,7 +33,7 @@ A `.nvmrc` file exists at the project root, so you can simply run `nvm use` from
    nvm use
    ```
 
-2. Install dependencies:
+2. Install dependencies (run after `nvm use`):
    ```bash
    npm install
    ```
@@ -70,6 +70,9 @@ A `.nvmrc` file exists at the project root, so you can simply run `nvm use` from
 | DELETE | `/api/conversations/:id/tags/:tagId` | Remove tag from conversation |
 | GET | `/api/conversations/:id/messages` | Get messages |
 | POST | `/api/conversations/:id/messages` | Send message (triggers streaming) |
+| POST | `/api/attachments` | Upload attachment |
+| PUT | `/api/attachments/:id` | Rename attachment |
+| DELETE | `/api/attachments/:id` | Delete attachment |
 
 
 **Model selection behavior when creating conversations**
