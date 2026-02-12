@@ -88,7 +88,8 @@ struct MessageInputView: View {
                         }
                     }
                 )
-                .frame(height: min(max(textHeight, 22), 120))
+                .frame(height: max(textHeight, 22))
+                .animation(.easeInOut(duration: 0.12), value: textHeight)
                 .padding(8)
                 .background(Color(NSColor.controlBackgroundColor))
                 .cornerRadius(12)
@@ -262,6 +263,12 @@ struct SubmittableTextViewRepresentable: NSViewRepresentable {
         
         // Configure scroll view
         scrollView.documentView = textView
+        // Ensure there is no vertical elasticity (no bounce) and no scroll indicator
+        scrollView.hasVerticalScroller = false
+        scrollView.verticalScrollElasticity = .none
+        // Watch bounds changes so we can recalculate height when width changes and text reflows
+        scrollView.contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.boundsDidChange(_:)), name: NSView.boundsDidChangeNotification, object: scrollView.contentView)
         
         // Store reference
         context.coordinator.textView = textView
@@ -337,7 +344,9 @@ struct SubmittableTextViewRepresentable: NSViewRepresentable {
             
             if abs(parent.textHeight - newHeight) > 1 {
                 DispatchQueue.main.async {
-                    self.parent.textHeight = newHeight
+                    withAnimation(.easeInOut(duration: 0.12)) {
+                        self.parent.textHeight = newHeight
+                    }
                 }
             }
         }
@@ -377,6 +386,16 @@ struct SubmittableTextViewRepresentable: NSViewRepresentable {
             }
             
             placeholderLabel?.isHidden = !show
+        }
+        
+        @objc func boundsDidChange(_ notification: Notification) {
+            guard let textView = self.textView else { return }
+            // Recalculate height when width changes and text reflows
+            updateHeight(textView)
+        }
+        
+        deinit {
+            NotificationCenter.default.removeObserver(self, name: NSView.boundsDidChangeNotification, object: nil)
         }
     }
 }
