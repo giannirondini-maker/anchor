@@ -242,6 +242,8 @@ export type WebSocketEventType =
   | "message:complete"
   | "message:error"
   | "session:idle"
+  | "tool:start"
+  | "tool:complete"
   | "pong";
 
 export interface WebSocketEvent<T = unknown> {
@@ -266,6 +268,17 @@ export interface MessageCompleteEvent {
 export interface MessageErrorEvent {
   messageId: string;
   error: string;
+}
+
+export interface ToolStartEvent {
+  messageId: string;
+  toolName: string;
+}
+
+export interface ToolCompleteEvent {
+  messageId: string;
+  toolName: string;
+  success: boolean;
 }
 
 // ============================================================================

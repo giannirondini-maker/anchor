@@ -73,10 +73,11 @@ class WebSocketService: NSObject, ObservableObject {
     // MARK: - Callbacks
     
     var onMessageStart: ((String) -> Void)?
-    var onMessageDelta: ((String, String) -> Void)?
-    var onMessageComplete: ((String, String) -> Void)?
-    var onMessageError: ((String, String) -> Void)?
-    
+    var onMessageDelta: ((String, String) -> Void)?  // (messageId, delta)
+    var onMessageComplete: ((String, String) -> Void)?  // (messageId, fullContent)
+    var onMessageError: ((String, String) -> Void)?  // (messageId, error)
+    var onToolStart: ((String, String) -> Void)?   // (messageId, toolName)
+    var onToolComplete: ((String, String) -> Void)? // (messageId, toolName) 
     // MARK: - Initialization
     
     override init() {
@@ -249,6 +250,18 @@ class WebSocketService: NSObject, ObservableObject {
                 if let messageId = message.data.messageId,
                    let error = message.data.error {
                     onMessageError?(messageId, error)
+                }
+                
+            case "tool:start":
+                if let messageId = message.data.messageId,
+                   let toolName = message.data.toolName {
+                    onToolStart?(messageId, toolName)
+                }
+                
+            case "tool:complete":
+                if let messageId = message.data.messageId,
+                   let toolName = message.data.toolName {
+                    onToolComplete?(messageId, toolName)
                 }
                 
             case "pong":

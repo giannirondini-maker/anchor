@@ -12,6 +12,7 @@ struct MessageListView: View {
     let isLoading: Bool
     var hasOlderMessages: Bool = false
     var isLoadingOlder: Bool = false
+    var activeToolName: String? = nil
     var onRetry: ((Message, String) -> Void)?  // Now passes the edited content
     var onLoadOlder: (() -> Void)?
     
@@ -125,6 +126,12 @@ struct MessageListView: View {
             StreamingIndicatorView()
                 .id("loading")
                 .accessibilityLabel("Assistant is thinking")
+        }
+
+        if let toolName = activeToolName {
+            ToolActivityIndicatorView(toolName: toolName)
+                .id("tool-activity")
+                .accessibilityLabel("Tool executing: \(toolName)")
         }
 
         // Invisible anchor for scrolling
@@ -497,6 +504,61 @@ struct CachedMarkdownView: View, Equatable {
                 FontSize(15)
             }
             .textSelection(.enabled)
+    }
+}
+
+// MARK: - Tool Activity Indicator View
+
+struct ToolActivityIndicatorView: View {
+    let toolName: String
+    @State private var isRotating = false
+    
+    private var displayName: String {
+        switch toolName {
+        case "web_search", "bing_search":
+            return "Searching the web"
+        case "read_url", "fetch_url":
+            return "Reading webpage"
+        case "read_file":
+            return "Reading file"
+        case "code_search":
+            return "Searching code"
+        case "run_command":
+            return "Running command"
+        default:
+            return "Using \(toolName)"
+        }
+    }
+    
+    var body: some View {
+        HStack(alignment: .top) {
+            HStack(spacing: 8) {
+                Image(systemName: "gear")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                    .rotationEffect(.degrees(isRotating ? 360 : 0))
+                    .animation(
+                        .linear(duration: 2).repeatForever(autoreverses: false),
+                        value: isRotating
+                    )
+                
+                Text(displayName + "…")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color.orange.opacity(0.08))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.orange.opacity(0.2), lineWidth: 1)
+            )
+            
+            Spacer(minLength: 60)
+        }
+        .transition(.opacity.combined(with: .move(edge: .top)))
+        .onAppear { isRotating = true }
     }
 }
 

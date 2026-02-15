@@ -266,4 +266,6 @@ struct WebSocketData: Codable {
     let content: String?
     let fullContent: String?
     let error: String?
+    let toolName: String?
+    let success: Bool?
 }

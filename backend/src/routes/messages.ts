@@ -177,6 +177,21 @@ router.post("/:id/messages", messageLimiter, validateBody(SendMessageSchema), as
           messageId: assistantMessageId,
           error: error.message,
         });
+      },
+      // onToolStart
+      (toolName: string) => {
+        broadcastToConversation(conversationId, "tool:start", {
+          messageId: assistantMessageId,
+          toolName,
+        });
+      },
+      // onToolComplete
+      (toolName: string, success: boolean) => {
+        broadcastToConversation(conversationId, "tool:complete", {
+          messageId: assistantMessageId,
+          toolName,
+          success,
+        });
       }
     );
   } catch (error) {
@@ -199,7 +214,7 @@ router.post("/:id/messages/:messageId/retry", validateBody(RetryMessageSchema), 
     }
 
     const messages = getMessagesForConversation(conversationId);
-    
+
     // Find the failed assistant message
     const failedMessage = messages.find(
       (m) => m.id === messageId && m.role === "assistant" && m.status === "error"
@@ -298,6 +313,21 @@ router.post("/:id/messages/:messageId/retry", validateBody(RetryMessageSchema), 
         broadcastToConversation(conversationId, "message:error", {
           messageId,
           error: error.message,
+        });
+      },
+      // onToolStart
+      (toolName: string) => {
+        broadcastToConversation(conversationId, "tool:start", {
+          messageId,
+          toolName,
+        });
+      },
+      // onToolComplete
+      (toolName: string, success: boolean) => {
+        broadcastToConversation(conversationId, "tool:complete", {
+          messageId,
+          toolName,
+          success,
         });
       }
     );

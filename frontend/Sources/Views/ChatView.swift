@@ -49,6 +49,7 @@ struct ChatView: View {
                 isLoading: viewModel.isStreaming,
                 hasOlderMessages: viewModel.hasOlderMessages,
                 isLoadingOlder: viewModel.isLoadingOlder,
+                activeToolName: viewModel.activeToolName,
                 onRetry: { message, editedContent in
                     Task {
                         await viewModel.retryMessage(message, with: editedContent)
@@ -153,6 +154,7 @@ class ChatViewModel: ObservableObject {
     @Published var hasOlderMessages: Bool = false
     @Published var isLoadingOlder: Bool = false
     @Published var pendingAttachments: [PendingAttachment] = []
+    @Published var activeToolName: String? = nil
 
     private var conversationId: String
     private let networkService = NetworkService.shared
@@ -304,6 +306,7 @@ class ChatViewModel: ObservableObject {
                 self.isStreaming = false
                 self.streamingMessageId = nil
                 self.streamingContent = ""
+                self.activeToolName = nil
 
                 // Move conversation to top when message is received
                 self.appState?.moveConversationToTop(id: self.conversationId)
@@ -329,6 +332,19 @@ class ChatViewModel: ObservableObject {
 
                 self.isStreaming = false
                 self.error = errorMsg
+                self.activeToolName = nil
+            }
+        }
+        
+        webSocketService.onToolStart = { [weak self] messageId, toolName in
+            Task { @MainActor in
+                self?.activeToolName = toolName
+            }
+        }
+        
+        webSocketService.onToolComplete = { [weak self] messageId, toolName in
+            Task { @MainActor in
+                self?.activeToolName = nil
             }
         }
         
@@ -477,6 +493,7 @@ class ChatViewModel: ObservableObject {
         pendingStreamContent = nil
         pendingStreamMessageId = nil
         pendingAttachments.removeAll()
+        activeToolName = nil
 
         // Check cache first before clearing messages
         if let cachedMessages = appState?.getCachedMessages(for: newConversationId) {

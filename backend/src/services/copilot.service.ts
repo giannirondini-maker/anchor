@@ -357,13 +357,21 @@ class CopilotService {
 
   /**
    * Send a message and stream the response
+   *
+   * Handles multi-turn tool invocations: when the LLM invokes tools, the SDK
+   * emits an intermediate `assistant.message` with a `toolRequests` array,
+   * followed by tool execution events, and then continues streaming the real
+   * response. Only `session.idle` (or an `assistant.message` without tool
+   * requests) should be treated as the definitive completion signal.
    */
   async sendMessage(
     conversationId: string,
     prompt: string,
     onDelta: (content: string) => void,
     onComplete: (content: string) => void,
-    onError: (error: Error) => void
+    onError: (error: Error) => void,
+    onToolStart?: (toolName: string) => void,
+    onToolComplete?: (toolName: string, success: boolean) => void,
   ): Promise<void> {
     const wrapper = this.sessions.get(conversationId);
     if (!wrapper) {
@@ -373,6 +381,7 @@ class CopilotService {
 
     const { session } = wrapper;
     let fullContent = "";
+    let completed = false;
 
     // Update session activity
     wrapper.lastActiveAt = new Date();
@@ -394,18 +403,45 @@ class CopilotService {
             // We can optionally include this in the output
             break;
 
-          case "assistant.message":
-            // Final complete message
+          case "assistant.message": {
+            // Complete message — but check if the model is requesting tool use
             fullContent = event.data.content;
             wrapper.messageCount++;
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const toolRequests = (event.data as any).toolRequests;
+            if (toolRequests && toolRequests.length > 0) {
+              // Intermediate message: the model is invoking tools.
+              // Keep listening for the tool results and the real response.
+              break;
+            }
+
+            // No tool requests — this is the final response
+            completed = true;
             onComplete(fullContent);
             unsubscribe();
             break;
+          }
+
+          case "tool.execution_start":
+            // A tool is starting to execute
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onToolStart?.((event.data as any).toolName);
+            break;
+
+          case "tool.execution_complete":
+            // A tool has finished executing
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onToolComplete?.((event.data as any).toolName, (event.data as any).success);
+            break;
 
           case "session.idle":
-            // Session finished processing
-            if (fullContent) {
-              onComplete(fullContent);
+            // Session finished all processing (including tool invocations)
+            if (!completed) {
+              if (fullContent) {
+                onComplete(fullContent);
+              }
+              completed = true;
             }
             unsubscribe();
             break;
