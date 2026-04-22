@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+# Memory
+memory
+
 # Node.js / Backend
 node_modules/
 npm-debug.log*

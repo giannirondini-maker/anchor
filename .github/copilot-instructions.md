@@ -124,7 +124,7 @@ Anchor/
                    │ JSON-RPC
 ┌──────────────────▼───────────────────────────────────────────────────┐
 │                     GitHub Copilot CLI                               │
-│                   (@github/copilot v0.0.400+)                        │
+│                   (@github/copilot v1.0.34+)                        │
 └──────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
@@ -150,7 +150,7 @@ nvm use  # Uses .nvmrc (20.20.0)
 # 3. Install and authenticate Copilot CLI
 npm install -g @github/copilot
 copilot auth login
-copilot --version  # Must be 0.0.400+
+copilot --version  # Must be 1.0.34+
 
 # 4. Backend setup (development mode)
 cd backend
@@ -185,7 +185,7 @@ The app supports separate development and production environments:
 
 1. **Node.js Version**: Always use Node.js 20.x. Native modules (`better-sqlite3`) must match the bundled runtime version.
 
-2. **Copilot CLI Version**: Must be v0.0.400+ for SDK protocol version 2 compatibility.
+2. **Copilot CLI Version**: Must be v1.0.34+ for SDK protocol version 3 compatibility.
 
 3. **macOS Version**: Minimum macOS 14.0 (Sonoma) for SwiftUI features.
 
@@ -523,9 +523,9 @@ DATABASE_PATH=:memory:   # In-memory database
 
 ### "SDK protocol version mismatch"
 ```bash
-nvm use 20.20.0
+nvm use 22.21.1
 npm update -g @github/copilot
-copilot --version  # Verify 0.0.400+
+copilot --version  # Verify 1.0.34+
 ```
 
 ### "Copilot CLI not found"
@@ -542,7 +542,7 @@ xattr -cr /Applications/Anchor.app
 ### Backend fails to start
 ```bash
 # Check Node version
-node --version  # Should be 20.x
+node --version  # Should be 22.x
 
 # Check Copilot auth
 copilot auth status
@@ -613,10 +613,13 @@ rm backend/data/anchor.db
 
 ## Release Process
 
-1. Update version in:
-   - `backend/package.json`
-   - `scripts/build-unified.sh` (VERSION variable)
-   - `scripts/create-dmg.sh` (VERSION variable)
+1. Update version in ALL files (see [repo memory](../memory/version-sync-checklist.md) for full checklist):
+   - `backend/package.json` — `"version"` field
+   - `scripts/build-unified.sh` — `DEFAULT_VERSION` variable
+   - `scripts/create-dmg.sh` — `DEFAULT_VERSION` variable
+   - **README.md** — Node.js version in prerequisites, setup, and build commands
+   - **CLAUDE.md** — any Node.js references
+   - **frontend/README.md** — any Node.js references
 
 2. Build and test:
    ```bash
@@ -631,6 +634,11 @@ rm backend/data/anchor.db
    - DMG file
    - Checksums
    - Release notes
+
+**⚠️ Critical**: Search for old version numbers across all markdown files to catch stragglers:
+```bash
+grep -r "20\.20\|20\.x\|v20\." *.md backend/ frontend/ scripts/ 2>/dev/null | grep -v node_modules
+```
 
 ---
 

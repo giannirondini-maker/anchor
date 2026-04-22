@@ -53,11 +53,11 @@ npm install -g @github/copilot
 # Authenticate
 copilot auth login
 
-# Verify version (must be 0.0.400 or later)
+# Verify version (must be 1.0.34 or later)
 copilot --version
 ```
 
-> **Note**: The Copilot CLI version must be **0.0.400+** to support SDK protocol version 2.
+> **Note**: The Copilot CLI version must be **1.0.34+** to support SDK protocol version 3.
 
 ### GitHub Copilot Subscription
 
@@ -255,11 +255,11 @@ xattr -cr /Applications/Anchor.app
 
 **Problem**: `SDK protocol version mismatch` error
 ```bash
-# The Copilot CLI is outdated - must be v0.0.400+
+# The Copilot CLI is outdated - must be v1.0.34+
 # Solution: Update Copilot CLI in your Node 22 environment
 nvm use 22.21.1
 npm update -g @github/copilot
-copilot --version  # Verify it shows 0.0.400 or later
+copilot --version  # Verify it shows 1.0.34 or later
 ```
 
 **Problem**: Backend fails to start / Copilot not found

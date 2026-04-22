@@ -38,14 +38,14 @@ Anchor is a desktop application that lets you interact with Large Language Model
 ## Prerequisites
 
 - macOS 14.0+ (Sonoma)
-- **Node.js 20.x LTS** (required - see [Node.js Setup](#nodejs-setup) below)
+- **Node.js 22.x LTS** (required - see [Node.js Setup](#nodejs-setup) below)
 - Xcode Command Line Tools (for frontend development; full Xcode optional)
 - GitHub Copilot CLI (`@github/copilot`) - installed via npm
 - Active Copilot subscription (Individual, Business, or Enterprise)
 
 ### Node.js Setup
 
-> ⚠️ **IMPORTANT**: This project requires **Node.js v20.x** for both development and building. The bundled app embeds Node.js v20.20.0, and native modules (like `better-sqlite3`) must be compiled with a matching version.
+> ⚠️ **IMPORTANT**: This project requires **Node.js v22.x** for both development and building. The bundled app embeds Node.js v22.21.1, and native modules (like `better-sqlite3`) must be compiled with a matching version.
 
 **Using NVM (Recommended):**
 
@@ -53,12 +53,12 @@ Anchor is a desktop application that lets you interact with Large Language Model
 # Install NVM if you haven't already
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
 
-# Install and use Node.js 20
-nvm install 20.20.0
-nvm use 20.20.0
+# Install and use Node.js 22
+nvm install 22.21.1
+nvm use 22.21.1
 
 # Set as default (optional)
-nvm alias default 20.20.0
+nvm alias default 22.21.1
 ```
 
 The project includes a `.nvmrc` file, so you can simply run:
@@ -79,10 +79,10 @@ npm install -g @github/copilot
 copilot auth login
 
 # Verify installation
-copilot --version  # Should show 0.0.400 or later
+copilot --version  # Should show 1.0.34 or later
 ```
 
-> **Note**: The Copilot CLI version must be **0.0.400 or later** to support SDK protocol version 2.
+> **Note**: The Copilot CLI version must be **1.0.34 or later** to support SDK protocol version 3.
 
 ## Quick Start
 
@@ -91,7 +91,7 @@ copilot --version  # Should show 0.0.400 or later
 ```bash
 cd backend
 
-# Ensure you're using Node.js 20 (run this before npm install/test/build)
+# Ensure you're using Node.js 22 (run this before npm install/test/build)
 nvm use
 
 # Install dependencies

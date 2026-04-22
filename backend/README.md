@@ -5,7 +5,7 @@ Backend service for Anchor - a native macOS Chat Client for GitHub Copilot.
 ## Prerequisites
 
 - **Node.js 20.20.0** (managed via NVM - see below)
-- GitHub Copilot CLI v0.0.400+ installed and authenticated
+- GitHub Copilot CLI v1.0.34+ installed and authenticated
 - GitHub Copilot subscription
 
 ### ⚠️ Node.js Version Requirements
@@ -43,7 +43,7 @@ A `.nvmrc` file exists at the project root, so you can simply run `nvm use` from
    npm install -g @github/copilot
    copilot auth login
    
-   # Verify version (must be 0.0.400+)
+   # Verify version (must be 1.0.34+)
    copilot --version
    ```
 
