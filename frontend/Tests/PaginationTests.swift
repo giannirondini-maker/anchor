@@ -4,25 +4,26 @@
  * Unit tests for message pagination and load older functionality
  */
 
-import XCTest
+import Foundation
+import Testing
 @testable import Anchor
 
-final class PaginationTests: XCTestCase {
+struct PaginationTests {
     
     // MARK: - Configuration Tests
     
-    func testPaginationLimitConfiguration() {
+    @Test func testPaginationLimitConfiguration() {
         // Verify the pagination limit is set appropriately
         let limit = Configuration.initialMessageLimit
         
-        XCTAssertEqual(limit, 50, "Should limit initial messages to 50")
-        XCTAssertGreaterThan(limit, 10, "Limit should be reasonable for chat (>10)")
-        XCTAssertLessThan(limit, 200, "Limit should prevent excessive initial load (<200)")
+        #expect(limit == 50, "Should limit initial messages to 50")
+        #expect(limit > 10, "Limit should be reasonable for chat (>10)")
+        #expect(limit < 200, "Limit should prevent excessive initial load (<200)")
     }
     
     // MARK: - Message Load Behavior Tests
     
-    func testHasOlderMessagesDetection() {
+    @Test func testHasOlderMessagesDetection() {
         // When fetched messages count equals limit, there may be older messages
         let limit = Configuration.initialMessageLimit
         let messages = createMockMessages(count: limit)
@@ -30,34 +31,34 @@ final class PaginationTests: XCTestCase {
         // In a real scenario, if we get exactly `limit` messages, hasOlderMessages = true
         // This tests the logic expectation
         let hasOlderMessages = messages.count >= limit
-        XCTAssertTrue(hasOlderMessages, "Should indicate more messages may exist when count equals limit")
+        #expect(hasOlderMessages, "Should indicate more messages may exist when count equals limit")
     }
     
-    func testNoOlderMessagesWhenCountBelowLimit() {
+    @Test func testNoOlderMessagesWhenCountBelowLimit() {
         // When fetched messages count is less than limit, there are no older messages
         let limit = Configuration.initialMessageLimit
         let messages = createMockMessages(count: limit - 10)
         
         let hasOlderMessages = messages.count >= limit
-        XCTAssertFalse(hasOlderMessages, "Should not indicate older messages when count < limit")
+        #expect(!hasOlderMessages, "Should not indicate older messages when count < limit")
     }
     
-    func testEmptyConversationHasNoOlderMessages() {
+    @Test func testEmptyConversationHasNoOlderMessages() {
         let messages: [Message] = []
         let limit = Configuration.initialMessageLimit
         
         let hasOlderMessages = messages.count >= limit
-        XCTAssertFalse(hasOlderMessages, "Empty conversation should not have older messages")
+        #expect(!hasOlderMessages, "Empty conversation should not have older messages")
     }
     
     // MARK: - ISO8601 Timestamp Formatting Tests
     
-    func testBeforeTimestampFormatting() {
+    @Test func testBeforeTimestampFormatting() {
         // Test that we can generate proper ISO8601 timestamps for pagination
         let calendar = Calendar.current
         let components = DateComponents(year: 2026, month: 2, day: 1, hour: 0, minute: 0, second: 0)
         guard let testDate = calendar.date(from: components) else {
-            XCTFail("Failed to create test date")
+            Issue.record("Failed to create test date")
             return
         }
         
@@ -74,43 +75,43 @@ final class PaginationTests: XCTestCase {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let timestamp = formatter.string(from: message.createdAt)
         
-        XCTAssertTrue(timestamp.contains("2026"), "Should contain year 2026, got: \(timestamp)")
-        XCTAssertTrue(timestamp.contains("T"), "Should be in ISO8601 format with T separator")
-        XCTAssertTrue(timestamp.hasSuffix("Z") || timestamp.contains("+") || timestamp.contains("-"), 
+        #expect(timestamp.contains("2026"), "Should contain year 2026, got: \(timestamp)")
+        #expect(timestamp.contains("T"), "Should be in ISO8601 format with T separator")
+        #expect(timestamp.hasSuffix("Z") || timestamp.contains("+") || timestamp.contains("-"), 
                       "Should have timezone indicator")
     }
     
     // MARK: - Debounce Timing Tests
     
-    func testDebounceDelayIsReasonable() async {
+    @Test func testDebounceDelayIsReasonable() async {
         // The debounce delay is 100ms (100_000_000 nanoseconds)
         let debounceDelayNs: UInt64 = 100_000_000
         let debounceDelaySeconds = Double(debounceDelayNs) / 1_000_000_000
         
-        XCTAssertEqual(debounceDelaySeconds, 0.1, accuracy: 0.01, "Debounce should be 100ms")
-        XCTAssertGreaterThan(debounceDelaySeconds, 0.05, "Debounce should be >50ms to be effective")
-        XCTAssertLessThan(debounceDelaySeconds, 0.5, "Debounce should be <500ms to feel responsive")
+        #expect(abs(debounceDelaySeconds - 0.1) <= 0.01, "Debounce should be 100ms")
+        #expect(debounceDelaySeconds > 0.05, "Debounce should be >50ms to be effective")
+        #expect(debounceDelaySeconds < 0.5, "Debounce should be <500ms to feel responsive")
     }
     
     // MARK: - CachedMarkdownView Equality Tests
     
-    func testCachedMarkdownViewEquality() {
+    @Test func testCachedMarkdownViewEquality() {
         let view1 = CachedMarkdownView(content: "Hello **world**")
         let view2 = CachedMarkdownView(content: "Hello **world**")
         let view3 = CachedMarkdownView(content: "Different content")
         
-        XCTAssertEqual(view1, view2, "Identical content should be equal")
-        XCTAssertNotEqual(view1, view3, "Different content should not be equal")
+        #expect(view1 == view2, "Identical content should be equal")
+        #expect(view1 != view3, "Different content should not be equal")
     }
     
-    func testCachedMarkdownViewEqualityWithEmptyContent() {
+    @Test func testCachedMarkdownViewEqualityWithEmptyContent() {
         let view1 = CachedMarkdownView(content: "")
         let view2 = CachedMarkdownView(content: "")
         
-        XCTAssertEqual(view1, view2, "Empty content views should be equal")
+        #expect(view1 == view2, "Empty content views should be equal")
     }
     
-    func testCachedMarkdownViewEqualityWithComplexMarkdown() {
+    @Test func testCachedMarkdownViewEqualityWithComplexMarkdown() {
         let markdown = """
         # Title
 
@@ -127,12 +128,12 @@ final class PaginationTests: XCTestCase {
         let view1 = CachedMarkdownView(content: markdown)
         let view2 = CachedMarkdownView(content: markdown)
 
-        XCTAssertEqual(view1, view2, "Complex markdown should maintain equality")
+        #expect(view1 == view2, "Complex markdown should maintain equality")
     }
 
     // MARK: - MessageBubbleView Equatable Tests
 
-    func testMessageBubbleViewEquality() {
+    @Test func testMessageBubbleViewEquality() {
         let message1 = Message(
             id: "msg1",
             conversationId: "conv1",
@@ -152,10 +153,10 @@ final class PaginationTests: XCTestCase {
         let view1 = MessageBubbleView(message: message1, onRetry: nil)
         let view2 = MessageBubbleView(message: message2, onRetry: nil)
 
-        XCTAssertEqual(view1, view2, "MessageBubbleViews with identical messages should be equal")
+        #expect(view1 == view2, "MessageBubbleViews with identical messages should be equal")
     }
 
-    func testMessageBubbleViewInequality() {
+    @Test func testMessageBubbleViewInequality() {
         let message1 = Message(
             id: "msg1",
             conversationId: "conv1",
@@ -175,10 +176,10 @@ final class PaginationTests: XCTestCase {
         let view1 = MessageBubbleView(message: message1, onRetry: nil)
         let view2 = MessageBubbleView(message: message2, onRetry: nil)
 
-        XCTAssertNotEqual(view1, view2, "MessageBubbleViews with different content should not be equal")
+        #expect(view1 != view2, "MessageBubbleViews with different content should not be equal")
     }
 
-    func testMessageBubbleViewInequalityWithDifferentStatus() {
+    @Test func testMessageBubbleViewInequalityWithDifferentStatus() {
         let message1 = Message(
             id: "msg1",
             conversationId: "conv1",
@@ -198,7 +199,7 @@ final class PaginationTests: XCTestCase {
         let view1 = MessageBubbleView(message: message1, onRetry: nil)
         let view2 = MessageBubbleView(message: message2, onRetry: nil)
 
-        XCTAssertNotEqual(view1, view2, "MessageBubbleViews with different status should not be equal")
+        #expect(view1 != view2, "MessageBubbleViews with different status should not be equal")
     }
 
     // MARK: - Helper Methods

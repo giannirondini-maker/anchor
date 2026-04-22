@@ -5,7 +5,7 @@ Native macOS SwiftUI application for Anchor - a chat client for GitHub Copilot.
 ## Requirements
 
 - macOS 14.0+ (Sonoma)
-- Xcode 15.0+
+- Xcode Command Line Tools (full Xcode optional)
 - Swift 5.9+
 
 ## Backend Dependency
@@ -15,7 +15,7 @@ The frontend requires the backend server to be running. For development:
 ```bash
 # In a separate terminal
 cd backend
-nvm use        # Important: Use Node 20.20.0
+nvm use        # Important: Use Node 22.21.1
 npm install
 npm run dev
 ```
@@ -24,7 +24,7 @@ See [backend/README.md](../backend/README.md) for full setup instructions, inclu
 
 ## Setup
 
-### Option 1: Using Xcode (Recommended)
+### Option 1: Using Xcode (Optional)
 
 1. Open the package directly in Xcode:
    ```bash
@@ -184,7 +184,7 @@ SwiftUI macOS apps built with SPM sometimes have issues displaying windows when 
    swift build && .build/debug/Anchor
    ```
 
-2. **Use Xcode instead:**
+2. **Open in Xcode (optional):**
    ```bash
    open Package.swift
    ```
@@ -229,6 +229,19 @@ frontend/
 │       └── MessageInputView.swift  # Message input
 └── README.md
 ```
+
+## Testing
+
+The test suite uses **Swift Testing** (`import Testing`) — Xcode is not required.
+
+```bash
+cd frontend && swift test \
+  -Xswiftc -F -Xswiftc "/Library/Developer/CommandLineTools/Library/Developer/Frameworks" \
+  -Xlinker -rpath -Xlinker "/Library/Developer/CommandLineTools/Library/Developer/Frameworks" \
+  -Xlinker -rpath -Xlinker "/Library/Developer/CommandLineTools/Library/Developer/usr/lib"
+```
+
+See `anchor-swift-testing.md` in repo memory for type disambiguation details when using `Anchor.Tag` / `Anchor.Attachment`.
 
 ## Dependencies
 

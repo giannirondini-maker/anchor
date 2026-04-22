@@ -1,46 +1,47 @@
-import XCTest
+import Foundation
+import Testing
 @testable import Anchor
 
-final class AppStateTests: XCTestCase {
-    
+struct AppStateTests {
+
     // MARK: - Initial State Tests
-    
-    @MainActor
+
+    @Test @MainActor
     func testInitialLoadingState() {
         let appState = AppState()
-        
+
         // Should start with loading indicators enabled
-        XCTAssertTrue(appState.isLoading, "Conversations should show loading state on startup")
-        XCTAssertTrue(appState.isLoadingModels, "Models should show loading state on startup")
-        XCTAssertFalse(appState.isDataLoaded, "Data should not be marked as loaded initially")
+        #expect(appState.isLoading, "Conversations should show loading state on startup")
+        #expect(appState.isLoadingModels, "Models should show loading state on startup")
+        #expect(!appState.isDataLoaded, "Data should not be marked as loaded initially")
     }
-    
-    @MainActor
+
+    @Test @MainActor
     func testInitialDraftMode() {
         let appState = AppState()
-        
+
         // Should start in draft mode with no conversation selected
-        XCTAssertTrue(appState.isDraftMode, "Should start in draft mode")
-        XCTAssertNil(appState.selectedConversationId, "No conversation should be selected initially")
+        #expect(appState.isDraftMode, "Should start in draft mode")
+        #expect(appState.selectedConversationId == nil, "No conversation should be selected initially")
     }
-    
+
     // MARK: - Model Selection Tests
 
-    func testChooseModel_usesRequestedIfProvided() {
+    @Test func testChooseModel_usesRequestedIfProvided() {
         let requested = "custom-model"
         let available: [ModelInfo] = [ModelInfo(id: "a", name: "A", multiplier: 1.0), ModelInfo(id: "b", name: "B", multiplier: 0.0)]
         let chosen = AppState.chooseModel(requested: requested, available: available)
-        XCTAssertEqual(chosen, requested)
+        #expect(chosen == requested)
     }
 
-    func testChooseModel_prefersConfiguredDefaultIfPresent() {
+    @Test func testChooseModel_prefersConfiguredDefaultIfPresent() {
         let defaultModel = Configuration.defaultModel
         let available: [ModelInfo] = [ModelInfo(id: defaultModel, name: "Default", multiplier: 1.0), ModelInfo(id: "b", name: "B", multiplier: 0.0)]
         let chosen = AppState.chooseModel(requested: nil, available: available)
-        XCTAssertEqual(chosen, defaultModel)
+        #expect(chosen == defaultModel)
     }
 
-    func testChooseModel_prefersZeroMultiplierWhenDefaultMissing() {
+    @Test func testChooseModel_prefersZeroMultiplierWhenDefaultMissing() {
         // Ensure configured default is not in available list
         let available: [ModelInfo] = [
             ModelInfo(id: "premium-1", name: "Premium", multiplier: 1.5),
@@ -51,10 +52,10 @@ final class AppStateTests: XCTestCase {
         // Capture stdout
         let output = captureStandardOutput {
             let chosen = AppState.chooseModel(requested: nil, available: available)
-            XCTAssertEqual(chosen, "free-1")
+            #expect(chosen == "free-1")
         }
 
-        XCTAssertTrue(output.contains("AUDIT: Default model"))
+        #expect(output.contains("AUDIT: Default model"))
     }
 
     // Helper to capture stdout
@@ -93,16 +94,16 @@ final class AppStateTests: XCTestCase {
         return out
     }
 
-    func testChooseModel_fallsBackToFirstIfNoFreeOrDefault() {
+    @Test func testChooseModel_fallsBackToFirstIfNoFreeOrDefault() {
         let available: [ModelInfo] = [ModelInfo(id: "first", name: "First", multiplier: 1.0)]
         let chosen = AppState.chooseModel(requested: nil, available: available)
-        XCTAssertEqual(chosen, "first")
+        #expect(chosen == "first")
     }
 
-    func testChooseModel_returnsConfiguredDefaultIfNoAvailable() {
+    @Test func testChooseModel_returnsConfiguredDefaultIfNoAvailable() {
         let defaultModel = Configuration.defaultModel
         let available: [ModelInfo] = []
         let chosen = AppState.chooseModel(requested: nil, available: available)
-        XCTAssertEqual(chosen, defaultModel)
+        #expect(chosen == defaultModel)
     }
 }

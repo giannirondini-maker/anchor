@@ -2,6 +2,12 @@
 
 This document provides comprehensive guidance for AI-assisted development on the Anchor project.
 
+## Parallelization with SubAgents
+
+When a task requires editing **multiple independent files**, spawn one subagent per file (or logical group of files) using the `runSubagent` tool to parallelize the work. Do not edit files sequentially when they can be done in parallel.
+
+---
+
 ## Project Overview
 
 **Anchor** is a native macOS chat client for GitHub Copilot, providing a ChatGPT-like experience. It consists of:
@@ -17,7 +23,7 @@ This document provides comprehensive guidance for AI-assisted development on the
 | Frontend | SwiftUI | macOS 14.0+, Swift 5.9+ |
 | Backend | Node.js/TypeScript | Node.js 20.x LTS |
 | Database | SQLite (better-sqlite3) | Embedded |
-| Build | Swift Package Manager, npm | Xcode 15+ |
+| Build | Swift Package Manager, npm | Xcode Command Line Tools or Xcode 15+ |
 | Distribution | DMG Installer | Apple Silicon (arm64) |
 
 ---
@@ -57,7 +63,7 @@ Anchor/
 │   │   ├── Models.swift      # Data models
 │   │   ├── Services/         # Network, WebSocket services
 │   │   └── Views/            # SwiftUI views
-│   └── Tests/                # XCTest files
+│   └── Tests/                # Swift Testing files
 │
 ├── scripts/                  # Build and packaging scripts
 │   ├── build-unified.sh      # Creates .app bundle
@@ -155,7 +161,7 @@ npm run dev  # Starts on port 3848 with dev database
 # 5. Frontend setup (separate terminal)
 cd frontend
 swift build && .build/arm64-apple-macosx/debug/Anchor
-# Or: open Package.swift  # Opens in Xcode
+# Or: open Package.swift  # Opens in Xcode (optional)
 ```
 
 ### Development vs Production Environments
@@ -316,13 +322,13 @@ cd backend && npm run dev
 
 # Frontend
 cd frontend && swift build
-# Or open Package.swift in Xcode
+# Or open Package.swift in Xcode (optional)
 ```
 
 ### Production Build
 
 ```bash
-# Ensure Node 20
+# Ensure Node 22
 nvm use
 
 # Build unified app bundle
@@ -350,7 +356,7 @@ build/
 
 ### What build-unified.sh Does
 
-1. Validates environment (Node version, Xcode tools)
+1. Validates environment (Node version, Xcode Command Line Tools)
 2. Downloads Node.js v22.21.1 for Apple Silicon
 3. Builds backend (`tsc`) and installs production dependencies
 4. Builds frontend (`swift build -c release`)
@@ -378,17 +384,35 @@ Key test file: `api.integration.test.ts` - Tests HTTP routes with in-memory data
 
 ### Frontend Tests
 
+The test suite uses **Swift Testing** (`import Testing`) — not XCTest. Xcode is not required; tests run with Xcode Command Line Tools only.
+
 ```bash
 cd frontend
-swift test
-# Or run in Xcode: ⌘U
+swift test \
+  -Xswiftc -F -Xswiftc "/Library/Developer/CommandLineTools/Library/Developer/Frameworks" \
+  -Xlinker -rpath -Xlinker "/Library/Developer/CommandLineTools/Library/Developer/Frameworks" \
+  -Xlinker -rpath -Xlinker "/Library/Developer/CommandLineTools/Library/Developer/usr/lib"
+# Or open Package.swift in Xcode (optional)
 ```
+
+The three extra flags are required because `Testing.framework` and `lib_TestingInterop.dylib` ship in the CLI tools but are not in SPM's default search path.
+
+**Type disambiguation**: `import Testing` introduces `Testing.Tag` and `Testing.Attachment` which conflict with Anchor model types. Test files that use both add:
+```swift
+private typealias Tag = Anchor.Tag
+private typealias Attachment = Anchor.Attachment
+```
+Note: `import SwiftUI` must NOT be present alongside these typealiases (see repo memory for details).
 
 Test files: `frontend/Tests/`
 - `AppStateTests.swift`
+- `ChatViewModelTests.swift`
 - `ConfigurationTests.swift`
+- `MessageListViewTests.swift`
 - `ModelsTests.swift`
+- `PaginationTests.swift`
 - `TagEditorTests.swift`
+- `WebSocketServiceTests.swift`
 
 ---
 

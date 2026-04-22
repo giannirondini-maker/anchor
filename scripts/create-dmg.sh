@@ -11,7 +11,7 @@
 #
 # Usage: ./scripts/create-dmg.sh [version]
 #
-# Example: ./scripts/create-dmg.sh 1.0.0
+# Example: ./scripts/create-dmg.sh 2.0.0
 ###############################################################################
 
 set -e  # Exit on error
@@ -26,7 +26,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 APP_NAME="Anchor"
-DEFAULT_VERSION="1.0.0"
+DEFAULT_VERSION="2.0.0"
 VERSION="${1:-$DEFAULT_VERSION}"
 
 # Paths

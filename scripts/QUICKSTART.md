@@ -88,16 +88,16 @@ open build/dist/Anchor.app
 ./scripts/create-dmg.sh 1.0.0
 
 # Test DMG
-open build/Anchor-1.0.0.dmg
+open build/dist/Anchor-1.0.0.dmg
 
 # Upload to GitHub (manual)
 # - Go to https://github.com/yourusername/anchor/releases/new
-# - Upload build/Anchor-1.0.0.dmg
+# - Upload build/dist/Anchor-1.0.0.dmg
 # - Copy release notes from build/RELEASE_NOTES.md
 
 # Or upload via GitHub CLI
 gh release create v1.0.0 \
-  build/Anchor-1.0.0.dmg \
+  build/dist/Anchor-1.0.0.dmg \
   --title "Anchor v1.0.0" \
   --notes-file build/RELEASE_NOTES.md
 ```

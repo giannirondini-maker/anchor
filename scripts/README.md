@@ -15,19 +15,19 @@ Anchor uses a **Unified App Bundle** approach, which embeds both the SwiftUI fro
    xcode-select --install
    ```
 
-2. **Node.js 20.x LTS** (via NVM - **required**)
+2. **Node.js 22.x LTS** (via NVM - **required**)
    
-   > ⚠️ **CRITICAL**: You must use Node.js v20.x for building. The bundled app embeds Node.js v20.20.0, and native modules must be compiled with a matching major version.
+   > ⚠️ **CRITICAL**: You must use Node.js v22.x for building. The bundled app embeds Node.js v22.21.1, and native modules must be compiled with a matching major version.
 
    ```bash
    # Install NVM if needed
    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
    
-   # Install Node.js 20
-   nvm install 20.20.0
+   # Install Node.js 22
+   nvm install 22.21.1
    
    # Use it (do this every time before building!)
-   nvm use 20.20.0
+   nvm use 22.21.1
    # Or simply:
    nvm use  # Uses version from .nvmrc
    ```
@@ -41,11 +41,11 @@ Anchor uses a **Unified App Bundle** approach, which embeds both the SwiftUI fro
 
 ### GitHub Copilot CLI Setup
 
-The Copilot CLI must be installed in your Node.js 20 environment:
+The Copilot CLI must be installed in your Node.js 22 environment:
 
 ```bash
-# Make sure you're using Node 20
-nvm use 20.20.0
+# Make sure you're using Node 22
+nvm use 22.21.1
 
 # Install Copilot CLI globally
 npm install -g @github/copilot
@@ -69,15 +69,15 @@ Users of the app will need:
 
 ### Step 1: Build the Unified App Bundle
 
-> ⚠️ **Before building**: Always ensure you're using Node.js 20:
+> ⚠️ **Before building**: Always ensure you're using Node.js 22:
 > ```bash
-> nvm use  # Or: nvm use 20.20.0
+> nvm use  # Or: nvm use 22.21.1
 > ```
 
 This script builds both frontend and backend, downloads the Node.js runtime for Apple Silicon, and creates the complete `.app` bundle:
 
 ```bash
-./scripts/build-unified.sh
+./scripts/build-unified.sh [version]
 ```
 
 **What it does:**
@@ -109,7 +109,7 @@ Once the app bundle is built, create a professional DMG installer:
 
 **Example:**
 ```bash
-./scripts/create-dmg.sh 1.0.0
+./scripts/create-dmg.sh [version]
 ```
 
 **What it does:**
@@ -121,7 +121,7 @@ Once the app bundle is built, create a professional DMG installer:
 **Output:**
 ```
 build/
-  Anchor-1.0.0.dmg           ← Distributable installer
+  Anchor-[version].dmg           ← Distributable installer
   RELEASE_NOTES.md           ← GitHub release notes
   checksums.txt              ← SHA256 verification
   UPLOAD_INSTRUCTIONS.txt    ← How to publish
@@ -131,24 +131,24 @@ build/
 
 ```bash
 # 0. IMPORTANT: Ensure correct Node.js version
-nvm use  # Uses .nvmrc (v20.20.0)
+nvm use  # Uses .nvmrc (v22.21.1)
 
 # 1. Build the app bundle
-./scripts/build-unified.sh
+./scripts/build-unified.sh [version]
 
 # 2. Test the app locally
 open build/dist/Anchor.app
 
 # 3. Create DMG for distribution
-./scripts/create-dmg.sh 1.0.0
+./scripts/create-dmg.sh [version]
 
 # 4. Test the DMG
-open build/Anchor-1.0.0.dmg
+open build/dist/Anchor-[version].dmg
 
 # 5. Upload to GitHub releases (manual or via gh CLI)
-gh release create v1.0.0 \
-  build/Anchor-1.0.0.dmg \
-  --title "Anchor v1.0.0" \
+gh release create v[version] \
+  build/dist/Anchor-[version].dmg \
+  --title "Anchor v[version]" \
   --notes-file build/RELEASE_NOTES.md
 ```
 
@@ -186,7 +186,7 @@ The SwiftUI app manages the backend process via `BackendManager`:
 
 - **Platform**: macOS 14.0+ (Sonoma and later)
 - **Architecture**: Apple Silicon (arm64) only
-- **Node.js**: v20.20.0 embedded
+- **Node.js**: v22.21.1 embedded
 - **Swift**: Latest stable toolchain
 
 ## Troubleshooting
@@ -195,9 +195,9 @@ The SwiftUI app manages the backend process via `BackendManager`:
 
 **Problem**: `Node.js version mismatch warning`
 ```bash
-# The build script detected you're not using Node.js 20
-# Solution: Switch to Node.js 20 via NVM
-nvm use 20.20.0
+# The build script detected you're not using Node.js 22
+# Solution: Switch to Node.js 22 via NVM
+nvm use 22.21.1
 # Or simply:
 nvm use  # Uses version from .nvmrc
 
@@ -236,8 +236,8 @@ cd ..
 **Problem**: `better-sqlite3` compilation errors or crashes
 ```bash
 # This usually means Node.js version mismatch
-# The bundled app uses Node 20.20.0, so you must build with Node 20
-nvm use 20.20.0
+# The bundled app uses Node 22.21.1, so you must build with Node 22
+nvm use 22.21.1
 cd backend
 rm -rf node_modules
 npm install
@@ -256,16 +256,16 @@ xattr -cr /Applications/Anchor.app
 **Problem**: `SDK protocol version mismatch` error
 ```bash
 # The Copilot CLI is outdated - must be v0.0.400+
-# Solution: Update Copilot CLI in your Node 20 environment
-nvm use 20.20.0
+# Solution: Update Copilot CLI in your Node 22 environment
+nvm use 22.21.1
 npm update -g @github/copilot
 copilot --version  # Verify it shows 0.0.400 or later
 ```
 
 **Problem**: Backend fails to start / Copilot not found
 ```bash
-# Ensure Copilot CLI is installed in your Node 20 environment
-nvm use 20.20.0
+# Ensure Copilot CLI is installed in your Node 22 environment
+nvm use 22.21.1
 npm install -g @github/copilot
 copilot auth login
 ```
@@ -299,7 +299,7 @@ For distribution, use the unified bundle:
 
 ```bash
 ./scripts/build-unified.sh
-./scripts/create-dmg.sh 1.0.0
+./scripts/create-dmg.sh [version]
 ```
 
 ## Customization
@@ -308,7 +308,7 @@ For distribution, use the unified bundle:
 
 Edit in `build-unified.sh`:
 ```bash
-APP_VERSION="1.0.0"  # Change this
+APP_VERSION="[version]"  # Change this
 ```
 
 ### Change Default Port
@@ -388,7 +388,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: '22'
       
       - name: Install create-dmg
         run: brew install create-dmg
@@ -411,6 +411,6 @@ MIT License - See LICENSE file for details.
 
 ---
 
-**Last Updated**: February 1, 2026  
-**For**: Anchor v1.0.0  
+**Last Updated**: April 22, 2026  
+**For**: Anchor v2.0.0  
 **Platform**: macOS (Apple Silicon)

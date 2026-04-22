@@ -5,276 +5,240 @@
  * reconnection logic, message handling, and ping/pong keep-alive
  */
 
-import XCTest
+import Foundation
+import Testing
 @testable import Anchor
 
-final class WebSocketServiceTests: XCTestCase {
+struct WebSocketServiceTests {
     
     // MARK: - Initial State Tests
     
     @MainActor
-    func testInitialState() {
+    @Test func testInitialState() {
         let service = WebSocketService()
         
-        XCTAssertFalse(service.isConnected, "Should not be connected initially")
-        XCTAssertEqual(service.connectionState, .disconnected, "Should be in disconnected state")
-        XCTAssertNil(service.connectionError, "Should have no connection error initially")
+        #expect(!service.isConnected, "Should not be connected initially")
+        #expect(service.connectionState == .disconnected, "Should be in disconnected state")
+        #expect(service.connectionError == nil, "Should have no connection error initially")
     }
     
     // MARK: - Connection State Tests
     
     @MainActor
-    func testConnectionStateIsConnectedProperty() {
+    @Test func testConnectionStateIsConnectedProperty() {
         // Test the computed property on WebSocketConnectionState
-        XCTAssertTrue(WebSocketConnectionState.connected.isConnected)
-        XCTAssertFalse(WebSocketConnectionState.disconnected.isConnected)
-        XCTAssertFalse(WebSocketConnectionState.connecting.isConnected)
-        XCTAssertFalse(WebSocketConnectionState.reconnecting(attempt: 1).isConnected)
+        #expect(WebSocketConnectionState.connected.isConnected)
+        #expect(!WebSocketConnectionState.disconnected.isConnected)
+        #expect(!WebSocketConnectionState.connecting.isConnected)
+        #expect(!WebSocketConnectionState.reconnecting(attempt: 1).isConnected)
     }
     
     @MainActor
-    func testConnectionStateDescriptions() {
-        XCTAssertEqual(WebSocketConnectionState.disconnected.description, "Disconnected")
-        XCTAssertEqual(WebSocketConnectionState.connecting.description, "Connecting...")
-        XCTAssertEqual(WebSocketConnectionState.connected.description, "Connected")
-        XCTAssertEqual(WebSocketConnectionState.reconnecting(attempt: 2).description, "Reconnecting (2/5)...")
+    @Test func testConnectionStateDescriptions() {
+        #expect(WebSocketConnectionState.disconnected.description == "Disconnected")
+        #expect(WebSocketConnectionState.connecting.description == "Connecting...")
+        #expect(WebSocketConnectionState.connected.description == "Connected")
+        #expect(WebSocketConnectionState.reconnecting(attempt: 2).description == "Reconnecting (2/5)...")
     }
     
     @MainActor
-    func testConnectionStateEquality() {
-        XCTAssertEqual(WebSocketConnectionState.disconnected, WebSocketConnectionState.disconnected)
-        XCTAssertEqual(WebSocketConnectionState.connected, WebSocketConnectionState.connected)
-        XCTAssertEqual(WebSocketConnectionState.reconnecting(attempt: 2), WebSocketConnectionState.reconnecting(attempt: 2))
-        XCTAssertNotEqual(WebSocketConnectionState.reconnecting(attempt: 1), WebSocketConnectionState.reconnecting(attempt: 2))
+    @Test func testConnectionStateEquality() {
+        #expect(WebSocketConnectionState.disconnected == WebSocketConnectionState.disconnected)
+        #expect(WebSocketConnectionState.connected == WebSocketConnectionState.connected)
+        #expect(WebSocketConnectionState.reconnecting(attempt: 2) == WebSocketConnectionState.reconnecting(attempt: 2))
+        #expect(WebSocketConnectionState.reconnecting(attempt: 1) != WebSocketConnectionState.reconnecting(attempt: 2))
     }
     
     // MARK: - Message Handling Tests
     
-    @MainActor
-    func testHandleSessionIdleMessage() async throws {
+    @Test @MainActor
+    func testHandleSessionIdleMessage() async {
         let _ = WebSocketService()
-        let expectation = expectation(description: "Connection confirmed")
-        
+
         // Simulate receiving session:idle message JSON structure
         let _ = """
         {"event":"session:idle","data":{"messageId":null,"content":null,"fullContent":null,"error":null,"toolName":null,"success":null}}
         """
-        
-        // We need to use reflection or create a mock to test private methods
-        // For now, we'll test the published properties indirectly
-        
+
         // Note: This test would require making handleMessage internal or using a test-specific protocol
         // For demonstration purposes, we're showing the expected behavior
-        
-        expectation.fulfill()
-        await fulfillment(of: [expectation], timeout: 1.0)
-        
+
         // When session:idle is received:
-        // XCTAssertTrue(service.isConnected)
-        // XCTAssertEqual(service.connectionState, .connected)
-        // XCTAssertNil(service.connectionError)
+        // #expect(service.isConnected)
+        // #expect(service.connectionState == .connected)
+        // #expect(service.connectionError == nil)
     }
     
-    @MainActor
-    func testMessageStartCallback() async {
+    @Test @MainActor
+    func testMessageStartCallback() {
         let service = WebSocketService()
-        let expectation = expectation(description: "Message start callback")
         var receivedMessageId: String?
-        
+
         service.onMessageStart = { messageId in
             receivedMessageId = messageId
-            expectation.fulfill()
         }
-        
-        // Simulate message:start event through handleMessage
-        // In actual implementation, this would be tested through integration tests
-        // or by making handleMessage internal for testing
-        
-        // Expected behavior when receiving:
-        // {"event":"message:start","data":{"messageId":"msg123",...}}
-        // receivedMessageId should be "msg123"
-        
+
         // For now, manually test the callback mechanism
         service.onMessageStart?("msg123")
-        
-        await fulfillment(of: [expectation], timeout: 1.0)
-        XCTAssertEqual(receivedMessageId, "msg123")
+
+        #expect(receivedMessageId == "msg123")
     }
     
-    @MainActor
-    func testMessageDeltaCallback() async {
+    @Test @MainActor
+    func testMessageDeltaCallback() {
         let service = WebSocketService()
-        let expectation = expectation(description: "Message delta callback")
         var receivedMessageId: String?
         var receivedDelta: String?
-        
+
         service.onMessageDelta = { messageId, delta in
             receivedMessageId = messageId
             receivedDelta = delta
-            expectation.fulfill()
         }
-        
+
         service.onMessageDelta?("msg123", "Hello ")
-        
-        await fulfillment(of: [expectation], timeout: 1.0)
-        XCTAssertEqual(receivedMessageId, "msg123")
-        XCTAssertEqual(receivedDelta, "Hello ")
+
+        #expect(receivedMessageId == "msg123")
+        #expect(receivedDelta == "Hello ")
     }
     
-    @MainActor
-    func testMessageCompleteCallback() async {
+    @Test @MainActor
+    func testMessageCompleteCallback() {
         let service = WebSocketService()
-        let expectation = expectation(description: "Message complete callback")
         var receivedMessageId: String?
         var receivedContent: String?
-        
+
         service.onMessageComplete = { messageId, fullContent in
             receivedMessageId = messageId
             receivedContent = fullContent
-            expectation.fulfill()
         }
-        
+
         service.onMessageComplete?("msg123", "Hello, world!")
-        
-        await fulfillment(of: [expectation], timeout: 1.0)
-        XCTAssertEqual(receivedMessageId, "msg123")
-        XCTAssertEqual(receivedContent, "Hello, world!")
+
+        #expect(receivedMessageId == "msg123")
+        #expect(receivedContent == "Hello, world!")
     }
     
-    @MainActor
-    func testMessageErrorCallback() async {
+    @Test @MainActor
+    func testMessageErrorCallback() {
         let service = WebSocketService()
-        let expectation = expectation(description: "Message error callback")
         var receivedMessageId: String?
         var receivedError: String?
-        
+
         service.onMessageError = { messageId, error in
             receivedMessageId = messageId
             receivedError = error
-            expectation.fulfill()
         }
-        
+
         service.onMessageError?("msg123", "Network error")
-        
-        await fulfillment(of: [expectation], timeout: 1.0)
-        XCTAssertEqual(receivedMessageId, "msg123")
-        XCTAssertEqual(receivedError, "Network error")
+
+        #expect(receivedMessageId == "msg123")
+        #expect(receivedError == "Network error")
     }
     
-    @MainActor
-    func testToolStartCallback() async {
+    @Test @MainActor
+    func testToolStartCallback() {
         let service = WebSocketService()
-        let expectation = expectation(description: "Tool start callback")
         var receivedMessageId: String?
         var receivedToolName: String?
-        
+
         service.onToolStart = { messageId, toolName in
             receivedMessageId = messageId
             receivedToolName = toolName
-            expectation.fulfill()
         }
-        
+
         service.onToolStart?("msg123", "web_search")
-        
-        await fulfillment(of: [expectation], timeout: 1.0)
-        XCTAssertEqual(receivedMessageId, "msg123")
-        XCTAssertEqual(receivedToolName, "web_search")
+
+        #expect(receivedMessageId == "msg123")
+        #expect(receivedToolName == "web_search")
     }
     
-    @MainActor
-    func testToolCompleteCallback() async {
+    @Test @MainActor
+    func testToolCompleteCallback() {
         let service = WebSocketService()
-        let expectation = expectation(description: "Tool complete callback")
         var receivedMessageId: String?
         var receivedToolName: String?
-        
+
         service.onToolComplete = { messageId, toolName in
             receivedMessageId = messageId
             receivedToolName = toolName
-            expectation.fulfill()
         }
-        
+
         service.onToolComplete?("msg123", "web_search")
-        
-        await fulfillment(of: [expectation], timeout: 1.0)
-        XCTAssertEqual(receivedMessageId, "msg123")
-        XCTAssertEqual(receivedToolName, "web_search")
+
+        #expect(receivedMessageId == "msg123")
+        #expect(receivedToolName == "web_search")
     }
     
     // MARK: - WebSocket Error Tests
     
-    func testWebSocketErrorDescriptions() {
-        XCTAssertEqual(
-            WebSocketError.invalidURL.errorDescription,
-            "Invalid WebSocket URL"
+    @Test func testWebSocketErrorDescriptions() {
+        #expect(
+            WebSocketError.invalidURL.errorDescription == "Invalid WebSocket URL"
         )
         
-        XCTAssertEqual(
-            WebSocketError.connectionFailed.errorDescription,
-            "Failed to connect to WebSocket"
+        #expect(
+            WebSocketError.connectionFailed.errorDescription == "Failed to connect to WebSocket"
         )
         
-        XCTAssertEqual(
-            WebSocketError.messageFailed.errorDescription,
-            "Failed to send message"
+        #expect(
+            WebSocketError.messageFailed.errorDescription == "Failed to send message"
         )
         
-        XCTAssertEqual(
-            WebSocketError.connectionClosed(code: 1000).errorDescription,
-            "Connection closed (code: 1000)"
+        #expect(
+            WebSocketError.connectionClosed(code: 1000).errorDescription == "Connection closed (code: 1000)"
         )
     }
     
     // MARK: - Reconnection Logic Tests (Behavioral)
     
     @MainActor
-    func testReconnectionAttemptsIncrement() {
+    @Test func testReconnectionAttemptsIncrement() {
         // Test that reconnection attempts would increment
         // In actual implementation, we would need to observe the state over time
         let maxAttempts = Configuration.maxReconnectAttempts
-        XCTAssertEqual(maxAttempts, 5, "Max reconnection attempts should be 5")
+        #expect(maxAttempts == 5, "Max reconnection attempts should be 5")
         
         // Test exponential backoff calculation
         for attempt in 1...5 {
             let delay = pow(2.0, Double(attempt))
-            XCTAssertGreaterThan(delay, 0, "Delay should be positive")
-            XCTAssertLessThanOrEqual(delay, 32.0, "Delay should not exceed 32 seconds")
+            #expect(delay > 0, "Delay should be positive")
+            #expect(delay <= 32.0, "Delay should not exceed 32 seconds")
         }
     }
     
     // MARK: - Configuration Tests
     
-    func testConfigurationValues() {
+    @Test func testConfigurationValues() {
         // Verify WebSocket configuration values
-        XCTAssertEqual(Configuration.maxReconnectAttempts, 5)
-        XCTAssertEqual(Configuration.reconnectBaseDelay, 1.0)
-        XCTAssertEqual(Configuration.reconnectMaxDelay, 30.0)
+        #expect(Configuration.maxReconnectAttempts == 5)
+        #expect(Configuration.reconnectBaseDelay == 1.0)
+        #expect(Configuration.reconnectMaxDelay == 30.0)
     }
     
     // MARK: - Singleton Tests
     
     @MainActor
-    func testSharedInstance() {
+    @Test func testSharedInstance() {
         let instance1 = WebSocketService.shared
         let instance2 = WebSocketService.shared
         
-        XCTAssertTrue(instance1 === instance2, "Shared instance should be the same object")
+        #expect(instance1 === instance2, "Shared instance should be the same object")
     }
     
     // MARK: - Connection URL Tests
     
-    func testConnectionURLConstruction() {
+    @Test func testConnectionURLConstruction() {
         let conversationId = "test_conv_123"
         
         // Verify Configuration provides correct WebSocket URL
-        XCTAssertTrue(Configuration.webSocketURL.absoluteString.starts(with: "ws://"))
+        #expect(Configuration.webSocketURL.absoluteString.starts(with: "ws://"))
         
         // Verify URL construction would be valid
         let url = URL(string: "\(Configuration.webSocketURL.absoluteString)?conversationId=\(conversationId)")
-        XCTAssertNotNil(url, "Constructed WebSocket URL should be valid")
+        #expect(url != nil, "Constructed WebSocket URL should be valid")
         
         // Verify the URL contains the conversation ID
-        XCTAssertTrue(url?.absoluteString.contains(conversationId) ?? false)
+        #expect(url?.absoluteString.contains(conversationId) ?? false)
     }
 }
 

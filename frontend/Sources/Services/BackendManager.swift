@@ -162,13 +162,13 @@ class BackendManager: ObservableObject {
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
         let nvmVersionsDir = "\(homeDir)/.nvm/versions/node"
         if let nvmVersions = try? FileManager.default.contentsOfDirectory(atPath: nvmVersionsDir) {
-            // Sort versions and use the latest one, or prefer v20.x if available
+            // Sort versions and use the latest one, or prefer v22.x if available
             let sortedVersions = nvmVersions.sorted { v1, v2 in
-                // Prefer v20.x versions for compatibility with bundled runtime
-                let v1IsV20 = v1.hasPrefix("v20")
-                let v2IsV20 = v2.hasPrefix("v20")
-                if v1IsV20 != v2IsV20 {
-                    return v1IsV20
+                // Prefer v22.x versions for compatibility with bundled runtime
+                let v1IsV22 = v1.hasPrefix("v22")
+                let v2IsV22 = v2.hasPrefix("v22")
+                if v1IsV22 != v2IsV22 {
+                    return v1IsV22
                 }
                 return v1 > v2
             }

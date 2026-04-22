@@ -4,14 +4,19 @@
  * Unit tests for data model decoding and initialization
  */
 
-import XCTest
+import Foundation
+import Testing
 @testable import Anchor
 
-final class ModelsTests: XCTestCase {
-    
+// Disambiguate Anchor types from Testing types
+private typealias Tag = Anchor.Tag
+private typealias Attachment = Anchor.Attachment
+
+struct ModelsTests {
+
     // MARK: - Conversation Tests
-    
-    func testConversationDecoding() throws {
+
+    @Test func testConversationDecoding() throws {
         let json = """
         {
             "id": "conv_123",
@@ -27,15 +32,15 @@ final class ModelsTests: XCTestCase {
         
         let conversation = try JSONDecoder().decode(Conversation.self, from: json)
         
-        XCTAssertEqual(conversation.id, "conv_123")
-        XCTAssertEqual(conversation.title, "Test Conversation")
-        XCTAssertEqual(conversation.model, "claude-sonnet-4-20250514")
-        XCTAssertNil(conversation.agent)
-        XCTAssertEqual(conversation.sessionId, "session_456")
-        XCTAssertTrue(conversation.tags.isEmpty)
+        #expect(conversation.id == "conv_123")
+        #expect(conversation.title == "Test Conversation")
+        #expect(conversation.model == "claude-sonnet-4-20250514")
+        #expect(conversation.agent == nil)
+        #expect(conversation.sessionId == "session_456")
+        #expect(conversation.tags.isEmpty)
     }
     
-    func testConversationDecodingWithMissingOptionalFields() throws {
+    @Test func testConversationDecodingWithMissingOptionalFields() throws {
         let json = """
         {
             "id": "conv_123",
@@ -47,14 +52,14 @@ final class ModelsTests: XCTestCase {
         
         let conversation = try JSONDecoder().decode(Conversation.self, from: json)
         
-        XCTAssertEqual(conversation.id, "conv_123")
-        XCTAssertNil(conversation.model)
-        XCTAssertNil(conversation.agent)
-        XCTAssertNil(conversation.sessionId)
-        XCTAssertTrue(conversation.tags.isEmpty)
+        #expect(conversation.id == "conv_123")
+        #expect(conversation.model == nil)
+        #expect(conversation.agent == nil)
+        #expect(conversation.sessionId == nil)
+        #expect(conversation.tags.isEmpty)
     }
     
-    func testConversationInitializer() {
+    @Test func testConversationInitializer() {
         let conversation = Conversation(
             id: "conv_test",
             title: "My Chat",
@@ -62,24 +67,24 @@ final class ModelsTests: XCTestCase {
             agent: nil
         )
         
-        XCTAssertEqual(conversation.id, "conv_test")
-        XCTAssertEqual(conversation.title, "My Chat")
-        XCTAssertEqual(conversation.model, "gpt-5")
+        #expect(conversation.id == "conv_test")
+        #expect(conversation.title == "My Chat")
+        #expect(conversation.model == "gpt-5")
     }
     
-    func testConversationEquality() {
+    @Test func testConversationEquality() {
         let now = Date()
         let conv1 = Conversation(id: "conv_1", title: "Chat 1", createdAt: now, updatedAt: now)
         let conv2 = Conversation(id: "conv_1", title: "Chat 1", createdAt: now, updatedAt: now)
         let conv3 = Conversation(id: "conv_2", title: "Chat 2", createdAt: now, updatedAt: now)
 
-        XCTAssertEqual(conv1, conv2)
-        XCTAssertNotEqual(conv1, conv3)
+        #expect(conv1 == conv2)
+        #expect(conv1 != conv3)
     }
     
     // MARK: - Message Tests
     
-    func testMessageDecoding() throws {
+    @Test func testMessageDecoding() throws {
         let json = """
         {
             "id": "msg_123",
@@ -94,15 +99,15 @@ final class ModelsTests: XCTestCase {
         
         let message = try JSONDecoder().decode(Message.self, from: json)
         
-        XCTAssertEqual(message.id, "msg_123")
-        XCTAssertEqual(message.conversationId, "conv_456")
-        XCTAssertEqual(message.role, .assistant)
-        XCTAssertEqual(message.content, "Hello! How can I help you?")
-        XCTAssertEqual(message.status, .sent)
-        XCTAssertNil(message.errorMessage)
+        #expect(message.id == "msg_123")
+        #expect(message.conversationId == "conv_456")
+        #expect(message.role == .assistant)
+        #expect(message.content == "Hello! How can I help you?")
+        #expect(message.status == .sent)
+        #expect(message.errorMessage == nil)
     }
     
-    func testMessageWithError() throws {
+    @Test func testMessageWithError() throws {
         let json = """
         {
             "id": "msg_123",
@@ -117,11 +122,11 @@ final class ModelsTests: XCTestCase {
         
         let message = try JSONDecoder().decode(Message.self, from: json)
         
-        XCTAssertEqual(message.status, .error)
-        XCTAssertEqual(message.errorMessage, "Rate limit exceeded")
+        #expect(message.status == .error)
+        #expect(message.errorMessage == "Rate limit exceeded")
     }
 
-    func testMessageWithAttachmentsDecoding() throws {
+    @Test func testMessageWithAttachmentsDecoding() throws {
         let json = """
         {
             "id": "msg_789",
@@ -146,26 +151,26 @@ final class ModelsTests: XCTestCase {
 
         let message = try JSONDecoder().decode(Message.self, from: json)
 
-        XCTAssertEqual(message.attachments?.count, 1)
-        XCTAssertEqual(message.attachments?.first?.id, "att_123")
-        XCTAssertEqual(message.attachments?.first?.mimeType, "application/pdf")
+        #expect(message.attachments?.count == 1)
+        #expect(message.attachments?.first?.id == "att_123")
+        #expect(message.attachments?.first?.mimeType == "application/pdf")
     }
     
-    func testMessageRoles() {
-        XCTAssertEqual(MessageRole.user.rawValue, "user")
-        XCTAssertEqual(MessageRole.assistant.rawValue, "assistant")
-        XCTAssertEqual(MessageRole.system.rawValue, "system")
+    @Test func testMessageRoles() {
+        #expect(MessageRole.user.rawValue == "user")
+        #expect(MessageRole.assistant.rawValue == "assistant")
+        #expect(MessageRole.system.rawValue == "system")
     }
     
-    func testMessageStatuses() {
-        XCTAssertEqual(MessageStatus.sending.rawValue, "sending")
-        XCTAssertEqual(MessageStatus.sent.rawValue, "sent")
-        XCTAssertEqual(MessageStatus.error.rawValue, "error")
+    @Test func testMessageStatuses() {
+        #expect(MessageStatus.sending.rawValue == "sending")
+        #expect(MessageStatus.sent.rawValue == "sent")
+        #expect(MessageStatus.error.rawValue == "error")
     }
     
     // MARK: - ModelInfo Tests
     
-    func testModelInfoDecoding() throws {
+    @Test func testModelInfoDecoding() throws {
         let json = """
         {
             "id": "claude-sonnet-4-20250514",
@@ -179,15 +184,15 @@ final class ModelsTests: XCTestCase {
         
         let model = try JSONDecoder().decode(ModelInfo.self, from: json)
         
-        XCTAssertEqual(model.id, "claude-sonnet-4-20250514")
-        XCTAssertEqual(model.name, "Claude Sonnet 4")
-        XCTAssertEqual(model.multiplier, 1.5)
-        XCTAssertTrue(model.supportsVision)
-        XCTAssertEqual(model.maxContextTokens, 200000)
-        XCTAssertTrue(model.enabled)
+        #expect(model.id == "claude-sonnet-4-20250514")
+        #expect(model.name == "Claude Sonnet 4")
+        #expect(model.multiplier == 1.5)
+        #expect(model.supportsVision)
+        #expect(model.maxContextTokens == 200000)
+        #expect(model.enabled)
     }
     
-    func testModelInfoWithDefaults() throws {
+    @Test func testModelInfoWithDefaults() throws {
         let json = """
         {
             "id": "simple-model",
@@ -197,55 +202,55 @@ final class ModelsTests: XCTestCase {
         
         let model = try JSONDecoder().decode(ModelInfo.self, from: json)
         
-        XCTAssertEqual(model.multiplier, 1.0)
-        XCTAssertFalse(model.supportsVision)
-        XCTAssertEqual(model.maxContextTokens, 0)
-        XCTAssertTrue(model.enabled)
+        #expect(model.multiplier == 1.0)
+        #expect(!model.supportsVision)
+        #expect(model.maxContextTokens == 0)
+        #expect(model.enabled)
     }
     
-    func testModelInfoMultiplierFormatting() {
+    @Test func testModelInfoMultiplierFormatting() {
         // Test whole numbers
         let model1 = ModelInfo(id: "test-1", name: "Test Model 1", multiplier: 0.0)
-        XCTAssertEqual(model1.multiplierFormatted, "0x")
+        #expect(model1.multiplierFormatted == "0x")
         
         let model2 = ModelInfo(id: "test-2", name: "Test Model 2", multiplier: 1.0)
-        XCTAssertEqual(model2.multiplierFormatted, "1x")
+        #expect(model2.multiplierFormatted == "1x")
         
         let model3 = ModelInfo(id: "test-3", name: "Test Model 3", multiplier: 3.0)
-        XCTAssertEqual(model3.multiplierFormatted, "3x")
+        #expect(model3.multiplierFormatted == "3x")
         
         // Test decimals
         let model4 = ModelInfo(id: "test-4", name: "Test Model 4", multiplier: 0.33)
-        XCTAssertEqual(model4.multiplierFormatted, "0.33x")
+        #expect(model4.multiplierFormatted == "0.33x")
         
         let model5 = ModelInfo(id: "test-5", name: "Test Model 5", multiplier: 1.5)
-        XCTAssertEqual(model5.multiplierFormatted, "1.5x")
+        #expect(model5.multiplierFormatted == "1.5x")
         
         let model6 = ModelInfo(id: "test-6", name: "Test Model 6", multiplier: 2.25)
-        XCTAssertEqual(model6.multiplierFormatted, "2.25x")
+        #expect(model6.multiplierFormatted == "2.25x")
         
         // Test rounding edge cases (should round to 2 decimals)
         let model7 = ModelInfo(id: "test-7", name: "Test Model 7", multiplier: 1.555)
-        XCTAssertEqual(model7.multiplierFormatted, "1.56x")
+        #expect(model7.multiplierFormatted == "1.56x")
     }
     
-    func testModelInfoDisplayName() {
+    @Test func testModelInfoDisplayName() {
         let model1 = ModelInfo(id: "claude-sonnet-4", name: "Claude Sonnet 4", multiplier: 1.5)
-        XCTAssertEqual(model1.displayName, "Claude Sonnet 4 (1.5x)")
+        #expect(model1.displayName == "Claude Sonnet 4 (1.5x)")
         
         let model2 = ModelInfo(id: "gpt-5", name: "GPT-5", multiplier: 1.0)
-        XCTAssertEqual(model2.displayName, "GPT-5 (1x)")
+        #expect(model2.displayName == "GPT-5 (1x)")
         
         let model3 = ModelInfo(id: "free-model", name: "Free Model", multiplier: 0.0)
-        XCTAssertEqual(model3.displayName, "Free Model (0x)")
+        #expect(model3.displayName == "Free Model (0x)")
         
         let model4 = ModelInfo(id: "lite-model", name: "Lite Model", multiplier: 0.33)
-        XCTAssertEqual(model4.displayName, "Lite Model (0.33x)")
+        #expect(model4.displayName == "Lite Model (0.33x)")
     }
     
     // MARK: - Tag Tests
     
-    func testTagDecoding() throws {
+    @Test func testTagDecoding() throws {
         let json = """
         {
             "id": 1,
@@ -256,12 +261,12 @@ final class ModelsTests: XCTestCase {
         
         let tag = try JSONDecoder().decode(Tag.self, from: json)
         
-        XCTAssertEqual(tag.id, 1)
-        XCTAssertEqual(tag.name, "Important")
-        XCTAssertEqual(tag.color, "#FF0000")
+        #expect(tag.id == 1)
+        #expect(tag.name == "Important")
+        #expect(tag.color == "#FF0000")
     }
     
-    func testTagDecodingWithNullColor() throws {
+    @Test func testTagDecodingWithNullColor() throws {
         let json = """
         {
             "id": 2,
@@ -272,21 +277,21 @@ final class ModelsTests: XCTestCase {
         
         let tag = try JSONDecoder().decode(Tag.self, from: json)
         
-        XCTAssertEqual(tag.id, 2)
-        XCTAssertEqual(tag.name, "Work")
-        XCTAssertNil(tag.color)
+        #expect(tag.id == 2)
+        #expect(tag.name == "Work")
+        #expect(tag.color == nil)
     }
     
-    func testTagEquality() {
+    @Test func testTagEquality() {
         let tag1 = Tag(id: 1, name: "Test", color: "#FF0000")
         let tag2 = Tag(id: 1, name: "Test", color: "#FF0000")
         let tag3 = Tag(id: 2, name: "Other", color: nil)
         
-        XCTAssertEqual(tag1, tag2)
-        XCTAssertNotEqual(tag1, tag3)
+        #expect(tag1 == tag2)
+        #expect(tag1 != tag3)
     }
     
-    func testConversationDecodingWithTags() throws {
+    @Test func testConversationDecodingWithTags() throws {
         let json = """
         {
             "id": "conv_123",
@@ -303,17 +308,17 @@ final class ModelsTests: XCTestCase {
         
         let conversation = try JSONDecoder().decode(Conversation.self, from: json)
         
-        XCTAssertEqual(conversation.id, "conv_123")
-        XCTAssertEqual(conversation.tags.count, 2)
-        XCTAssertEqual(conversation.tags[0].name, "Important")
-        XCTAssertEqual(conversation.tags[0].color, "#FF0000")
-        XCTAssertEqual(conversation.tags[1].name, "Work")
-        XCTAssertNil(conversation.tags[1].color)
+        #expect(conversation.id == "conv_123")
+        #expect(conversation.tags.count == 2)
+        #expect(conversation.tags[0].name == "Important")
+        #expect(conversation.tags[0].color == "#FF0000")
+        #expect(conversation.tags[1].name == "Work")
+        #expect(conversation.tags[1].color == nil)
     }
     
     // MARK: - Response Types Tests
     
-    func testConversationsResponseDecoding() throws {
+    @Test func testConversationsResponseDecoding() throws {
         let json = """
         {
             "conversations": [
@@ -330,11 +335,11 @@ final class ModelsTests: XCTestCase {
         
         let response = try JSONDecoder().decode(ConversationsResponse.self, from: json)
         
-        XCTAssertEqual(response.conversations.count, 1)
-        XCTAssertEqual(response.conversations[0].id, "conv_1")
+        #expect(response.conversations.count == 1)
+        #expect(response.conversations[0].id == "conv_1")
     }
     
-    func testHealthResponseDecoding() throws {
+    @Test func testHealthResponseDecoding() throws {
         let json = """
         {
             "status": "healthy",
@@ -348,9 +353,9 @@ final class ModelsTests: XCTestCase {
         
         let response = try JSONDecoder().decode(HealthResponse.self, from: json)
         
-        XCTAssertEqual(response.status, "healthy")
-        XCTAssertEqual(response.version, "1.0.0")
-        XCTAssertTrue(response.sdk.connected)
-        XCTAssertTrue(response.sdk.authenticated)
+        #expect(response.status == "healthy")
+        #expect(response.version == "1.0.0")
+        #expect(response.sdk.connected)
+        #expect(response.sdk.authenticated)
     }
 }

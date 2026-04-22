@@ -10,7 +10,7 @@
 #
 # Prerequisites:
 # - Xcode Command Line Tools
-# - Node.js 20+ (for building)
+# - Node.js 22+ (for building)
 # - Swift toolchain
 #
 # Usage: ./scripts/build-unified.sh [version]
@@ -30,12 +30,12 @@ NC='\033[0m' # No Color
 
 # Configuration
 APP_NAME="Anchor"
-DEFAULT_VERSION="1.0.0"
+DEFAULT_VERSION="2.0.0"
 APP_VERSION="${1:-$DEFAULT_VERSION}"
 APP_IDENTIFIER="com.gianni.rondini.anchor"
 BUNDLE_DISPLAY_NAME="Anchor"
 MIN_MACOS_VERSION="14.0"
-NODE_VERSION="20.20.0"
+NODE_VERSION="22.21.1"
 
 # Paths
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -99,7 +99,7 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
     exit 1
 fi
 
-# Check Node.js version (must be v20.x to match embedded runtime)
+# Check Node.js version (must be v22.x to match embedded runtime)
 CURRENT_NODE_VERSION=$(node --version)
 NODE_MAJOR_VERSION=$(echo "$CURRENT_NODE_VERSION" | cut -d'.' -f1 | sed 's/v//')
 
@@ -116,13 +116,13 @@ if [[ -f "$PROJECT_ROOT/.nvmrc" ]]; then
     fi
 fi
 
-if [[ "$NODE_MAJOR_VERSION" != "20" ]]; then
-    print_warning "Node.js v20.x required for building (current: $CURRENT_NODE_VERSION)"
+if [[ "$NODE_MAJOR_VERSION" != "22" ]]; then
+    print_warning "Node.js v22.x required for building (current: $CURRENT_NODE_VERSION)"
     print_info "The bundled app uses Node.js v${NODE_VERSION}"
     print_info "Native modules (better-sqlite3) must be compiled with matching Node.js version"
     echo ""
     print_info "To fix, run:"
-    echo "  nvm install 20.20.0 && nvm use 20.20.0"
+    echo "  nvm install 22.21.1 && nvm use 22.21.1"
     echo ""
     read -p "Continue anyway? (y/N) " -n 1 -r
     echo
@@ -166,6 +166,17 @@ print_success "Build directory cleaned"
 print_step "Preparing Node.js runtime for Apple Silicon..."
 
 NODE_RUNTIME_DIR="$TOOLS_DIR/node-runtime"
+
+# Validate cached runtime version — if it doesn't match NODE_VERSION, force re-download
+if [[ -d "$NODE_RUNTIME_DIR" ]]; then
+    CACHED_NODE_VERSION=$("$NODE_RUNTIME_DIR/bin/node" --version 2>/dev/null || echo "unknown")
+    if [[ "$CACHED_NODE_VERSION" != "v${NODE_VERSION}" ]]; then
+        print_warning "Cached Node.js runtime is ${CACHED_NODE_VERSION}, expected v${NODE_VERSION}. Re-downloading..."
+        rm -rf "$NODE_RUNTIME_DIR"
+    else
+        print_info "Cached Node.js runtime matches v${NODE_VERSION} ✓"
+    fi
+fi
 
 if [[ ! -d "$NODE_RUNTIME_DIR" ]]; then
     print_info "Downloading Node.js v${NODE_VERSION} for Apple Silicon..."

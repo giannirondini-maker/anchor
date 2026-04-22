@@ -39,7 +39,7 @@ Anchor is a desktop application that lets you interact with Large Language Model
 
 - macOS 14.0+ (Sonoma)
 - **Node.js 20.x LTS** (required - see [Node.js Setup](#nodejs-setup) below)
-- Xcode 15+ (for frontend development)
+- Xcode Command Line Tools (for frontend development; full Xcode optional)
 - GitHub Copilot CLI (`@github/copilot`) - installed via npm
 - Active Copilot subscription (Individual, Business, or Enterprise)
 
@@ -116,7 +116,7 @@ cd frontend
 swift run
 ```
 
-Or open in Xcode:
+Or open in Xcode (optional):
 ```bash
 cd frontend
 swift package generate-xcodeproj
@@ -201,7 +201,10 @@ npm run lint     # Run linter
 cd frontend
 swift build      # Build
 swift run        # Run
-swift test       # Run tests
+swift test \
+  -Xswiftc -F -Xswiftc "/Library/Developer/CommandLineTools/Library/Developer/Frameworks" \
+  -Xlinker -rpath -Xlinker "/Library/Developer/CommandLineTools/Library/Developer/Frameworks" \
+  -Xlinker -rpath -Xlinker "/Library/Developer/CommandLineTools/Library/Developer/usr/lib"
 ```
 
 ## Architecture

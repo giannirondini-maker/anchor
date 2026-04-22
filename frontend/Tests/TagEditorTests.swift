@@ -4,121 +4,122 @@
  * Unit tests for tag editor components and utilities
  */
 
-import XCTest
+import Foundation
+import Testing
 import SwiftUI
 @testable import Anchor
 
-final class TagEditorTests: XCTestCase {
-    
+struct TagEditorTests {
+
     // MARK: - Color Hex Extension Tests
-    
-    func testColorFromValidHexWithHash() {
+
+    @Test func testColorFromValidHexWithHash() {
         let color = Color(hex: "#FF5733")
-        XCTAssertNotNil(color)
+        #expect(color != nil)
     }
-    
-    func testColorFromValidHexWithoutHash() {
+
+    @Test func testColorFromValidHexWithoutHash() {
         let color = Color(hex: "FF5733")
-        XCTAssertNotNil(color)
+        #expect(color != nil)
     }
-    
-    func testColorFromInvalidHex() {
+
+    @Test func testColorFromInvalidHex() {
         let color = Color(hex: "invalid")
-        XCTAssertNil(color)
+        #expect(color == nil)
     }
-    
-    func testColorFromEmptyString() {
+
+    @Test func testColorFromEmptyString() {
         let color = Color(hex: "")
-        XCTAssertNil(color)
+        #expect(color == nil)
     }
-    
-    func testColorFromShortHex() {
+
+    @Test func testColorFromShortHex() {
         // Short hex (3 characters) is not supported by our implementation
         let color = Color(hex: "F00")
-        XCTAssertNil(color)
+        #expect(color == nil)
     }
-    
-    func testColorFromHexWithWhitespace() {
+
+    @Test func testColorFromHexWithWhitespace() {
         let color = Color(hex: "  #FF5733  ")
-        XCTAssertNotNil(color)
+        #expect(color != nil)
     }
-    
-    func testColorFromLowercaseHex() {
+
+    @Test func testColorFromLowercaseHex() {
         let color = Color(hex: "#ff5733")
-        XCTAssertNotNil(color)
+        #expect(color != nil)
     }
-    
-    func testColorFromMixedCaseHex() {
+
+    @Test func testColorFromMixedCaseHex() {
         let color = Color(hex: "#Ff5733")
-        XCTAssertNotNil(color)
+        #expect(color != nil)
     }
     
     // MARK: - Tag Input Parsing Tests
-    
-    func testParseCommaSeparatedTags() {
+
+    @Test func testParseCommaSeparatedTags() {
         let input = "tag1, tag2, tag3"
         let tags = input
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        
-        XCTAssertEqual(tags.count, 3)
-        XCTAssertEqual(tags[0], "tag1")
-        XCTAssertEqual(tags[1], "tag2")
-        XCTAssertEqual(tags[2], "tag3")
+
+        #expect(tags.count == 3)
+        #expect(tags[0] == "tag1")
+        #expect(tags[1] == "tag2")
+        #expect(tags[2] == "tag3")
     }
-    
-    func testParseCommaSeparatedTagsWithExtraSpaces() {
+
+    @Test func testParseCommaSeparatedTagsWithExtraSpaces() {
         let input = "  tag1  ,  tag2  ,  tag3  "
         let tags = input
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        
-        XCTAssertEqual(tags.count, 3)
-        XCTAssertEqual(tags[0], "tag1")
-        XCTAssertEqual(tags[1], "tag2")
-        XCTAssertEqual(tags[2], "tag3")
+
+        #expect(tags.count == 3)
+        #expect(tags[0] == "tag1")
+        #expect(tags[1] == "tag2")
+        #expect(tags[2] == "tag3")
     }
-    
-    func testParseCommaSeparatedTagsWithEmptySegments() {
+
+    @Test func testParseCommaSeparatedTagsWithEmptySegments() {
         let input = "tag1,,tag2,  ,tag3"
         let tags = input
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        
-        XCTAssertEqual(tags.count, 3)
+
+        #expect(tags.count == 3)
     }
-    
-    func testParseSingleTag() {
+
+    @Test func testParseSingleTag() {
         let input = "SingleTag"
         let tags = input
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        
-        XCTAssertEqual(tags.count, 1)
-        XCTAssertEqual(tags[0], "SingleTag")
+
+        #expect(tags.count == 1)
+        #expect(tags[0] == "SingleTag")
     }
-    
-    func testParseEmptyInput() {
+
+    @Test func testParseEmptyInput() {
         let input = ""
         let tags = input
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        
-        XCTAssertTrue(tags.isEmpty)
+
+        #expect(tags.isEmpty)
     }
-    
-    func testParseWhitespaceOnlyInput() {
+
+    @Test func testParseWhitespaceOnlyInput() {
         let input = "   ,  ,   "
         let tags = input
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        
-        XCTAssertTrue(tags.isEmpty)
+
+        #expect(tags.isEmpty)
     }
 }

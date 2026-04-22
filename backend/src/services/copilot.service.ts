@@ -10,7 +10,7 @@
  * @see https://github.com/github/copilot-sdk
  */
 
-import { CopilotClient, CopilotSession } from "@github/copilot-sdk";
+import { approveAll, CopilotClient, CopilotSession } from "@github/copilot-sdk";
 import {
   ModelInfoSimple,
   AgentInfo,
@@ -202,6 +202,7 @@ class CopilotService {
       sessionId: conversationId,
       model: model,
       streaming: true,
+      onPermissionRequest: approveAll,
       // Infinite sessions for long conversations
       infiniteSessions: {
         enabled: true,
@@ -256,7 +257,7 @@ class CopilotService {
 
     try {
       // Try to resume from the SDK first
-      const session = await this.client.resumeSession(conversationId);
+      const session = await this.client.resumeSession(conversationId, {onPermissionRequest: approveAll});
       
       const wrapper: SessionWrapper = {
         session,
